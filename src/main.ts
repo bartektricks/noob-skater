@@ -16,13 +16,62 @@ const world = new RAPIER.World(gravity);
 const groundColliderDesc = RAPIER.ColliderDesc.cuboid(10.0, 0.1, 10.0);
 world.createCollider(groundColliderDesc);
 
-// Create a dynamic rigid body (a cube)
-const rigidBodyDesc = RAPIER.RigidBodyDesc.dynamic()
-    .setTranslation(0.0, 1.0, 0.0);
-const rigidBody = world.createRigidBody(rigidBodyDesc);
+// Create skateboard model
+const skateboardGroup = new THREE.Group();
 
-const colliderDesc = RAPIER.ColliderDesc.cuboid(0.5, 0.5, 0.5);
-world.createCollider(colliderDesc, rigidBody);
+// Deck (main board)
+const deckGeometry = new THREE.BoxGeometry(2, 0.1, 0.5);
+const deckMaterial = new THREE.MeshPhongMaterial({ color: 0x8B4513 }); // Brown color
+const deck = new THREE.Mesh(deckGeometry, deckMaterial);
+deck.position.set(0, 0.1, 0);
+skateboardGroup.add(deck);
+
+// Wheels
+const wheelGeometry = new THREE.CylinderGeometry(0.1, 0.1, 0.1, 16);
+const wheelMaterial = new THREE.MeshPhongMaterial({ color: 0x808080 }); // Gray color
+
+// Create 4 wheels
+const wheelPositions = [
+    { x: -0.7, y: 0.05, z: 0.25 },  // Front left
+    { x: -0.7, y: 0.05, z: -0.25 }, // Front right
+    { x: 0.7, y: 0.05, z: 0.25 },   // Back left
+    { x: 0.7, y: 0.05, z: -0.25 }   // Back right
+];
+
+wheelPositions.forEach(pos => {
+    const wheel = new THREE.Mesh(wheelGeometry, wheelMaterial);
+    wheel.position.set(pos.x, pos.y, pos.z);
+    wheel.rotation.x = Math.PI / 2; // Rotate to lay flat
+    skateboardGroup.add(wheel);
+});
+
+// Add skateboard to scene
+scene.add(skateboardGroup);
+
+// Add lighting
+const ambientLight = new THREE.AmbientLight(0xffffff, 0.5);
+scene.add(ambientLight);
+
+const directionalLight = new THREE.DirectionalLight(0xffffff, 0.8);
+directionalLight.position.set(5, 5, 5);
+scene.add(directionalLight);
+
+// Create physics for skateboard
+const skateboardBodyDesc = RAPIER.RigidBodyDesc.dynamic()
+    .setTranslation(0.0, 1.0, 0.0)
+    .setRotation(new THREE.Quaternion(0, 1, 0, 1));
+const skateboardBody = world.createRigidBody(skateboardBodyDesc);
+
+// Create colliders for deck and wheels
+const deckCollider = RAPIER.ColliderDesc.cuboid(1.0, 0.05, 0.25);
+world.createCollider(deckCollider, skateboardBody);
+
+// Add wheel colliders
+wheelPositions.forEach(pos => {
+    const wheelCollider = RAPIER.ColliderDesc.cylinder(0.1, 0.05);
+    wheelCollider.setTranslation(pos.x, pos.y, pos.z);
+    world.createCollider(wheelCollider, skateboardBody);
+});
 
 // Set up camera position
 camera.position.set(0, 5, 10);
@@ -43,6 +92,13 @@ function animate() {
 
     // Step the physics simulation
     world.step(eventQueue);
+
+    // Update skateboard position and rotation based on physics
+    const position = skateboardBody.translation();
+    const rotation = skateboardBody.rotation();
+    
+    skateboardGroup.position.set(position.x, position.y, position.z);
+    skateboardGroup.quaternion.set(rotation.x, rotation.y, rotation.z, rotation.w);
 
     // Get debug render data
     const { vertices, colors } = world.debugRender();
