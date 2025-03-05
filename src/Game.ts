@@ -1,44 +1,24 @@
 import * as THREE from 'three';
 import { Skateboard } from './Skateboard';
 import { UI } from './UI';
+import { Camera } from './Camera';
 
 export class Game {
   private scene: THREE.Scene;
-  private camera: THREE.PerspectiveCamera;
+  private cameraManager: Camera;
   private renderer: THREE.WebGLRenderer;
   private skateboard: Skateboard;
   private ui: UI;
   private clock: THREE.Clock;
 
-  // New camera system
-  private cameraTarget: THREE.Vector3 = new THREE.Vector3(0, 2, 0);
-  private cameraState = {
-    // Horizontal orbit angle in radians (around Y axis)
-    orbit: 0,
-    // Vertical angle in radians (0 = horizontal, π/2 = looking down)
-    elevation: Math.PI / 6,
-    // Distance from target
-    distance: 10,
-    // Height offset from target
-    height: 2
-  };
-  
   constructor() {
     // Create scene
     this.scene = new THREE.Scene();
     this.scene.background = new THREE.Color(0x87ceeb); // Sky blue background
 
-    // Create camera
-    this.camera = new THREE.PerspectiveCamera(
-      75,
-      window.innerWidth / window.innerHeight,
-      0.1,
-      1000
-    );
+    // Create camera manager
+    this.cameraManager = new Camera(window.innerWidth / window.innerHeight);
     
-    // Initial camera position will be set in updateCamera()
-    this.updateCamera();
-
     // Create renderer
     this.renderer = new THREE.WebGLRenderer({ antialias: true });
     this.renderer.setSize(window.innerWidth, window.innerHeight);
@@ -78,66 +58,35 @@ export class Game {
 
     // Handle window resize
     window.addEventListener('resize', this.onWindowResize.bind(this));
-    
-   
   }
 
-  private updateCamera(): void {
-    // Calculate camera position based on orbit and elevation angles
-    const { orbit, elevation, distance, height } = this.cameraState;
-    
-    // Calculate horizontal position (orbit around y-axis)
-    const horizontalDistance = distance * Math.cos(elevation);
-    const x = this.cameraTarget.x + horizontalDistance * Math.sin(orbit);
-    const z = this.cameraTarget.z + horizontalDistance * Math.cos(orbit);
-    
-    // Calculate vertical position (based on elevation angle and height)
-    const y = this.cameraTarget.y + height + distance * Math.sin(elevation);
-    
-    // Update camera position and look at target
-    this.camera.position.set(x, y, z);
-    this.camera.lookAt(this.cameraTarget);
-  }
-  
-  // Camera getter and setter methods
-  public getCameraState(): typeof this.cameraState {
-    return this.cameraState;
+  // Camera getter and setter methods - these methods can be kept for backwards compatibility
+  public getCameraState(): any {
+    return this.cameraManager.getState();
   }
   
   public setCameraOrbit(value: number): void {
-    this.cameraState.orbit = value;
-    this.updateCamera();
+    this.cameraManager.setOrbit(value);
   }
   
   public setCameraElevation(value: number): void {
-    this.cameraState.elevation = Math.max(0.1, Math.min(Math.PI / 2 - 0.1, value));
-    this.updateCamera();
+    this.cameraManager.setElevation(value);
   }
   
   public setCameraDistance(value: number): void {
-    this.cameraState.distance = Math.max(2, Math.min(30, value));
-    this.updateCamera();
+    this.cameraManager.setDistance(value);
   }
   
   public setCameraHeight(value: number): void {
-    this.cameraState.height = Math.max(0, value);
-    this.updateCamera();
+    this.cameraManager.setHeight(value);
   }
   
   public resetCamera(): void {
-    this.cameraState = {
-      orbit: 0,
-      elevation: Math.PI / 6,
-      distance: 10,
-      height: 2
-    };
-    this.updateCamera();
+    this.cameraManager.reset();
   }
 
-
   private onWindowResize(): void {
-    this.camera.aspect = window.innerWidth / window.innerHeight;
-    this.camera.updateProjectionMatrix();
+    this.cameraManager.setAspectRatio(window.innerWidth / window.innerHeight);
     this.renderer.setSize(window.innerWidth, window.innerHeight);
   }
 
@@ -147,12 +96,11 @@ export class Game {
     this.ui.update();
     
     // Update camera target to follow skateboard
-    this.cameraTarget.copy(this.skateboard.mesh.position);
-    this.updateCamera();
+    this.cameraManager.setTarget(this.skateboard.mesh.position);
   }
 
   public render(): void {
-    this.renderer.render(this.scene, this.camera);
+    this.renderer.render(this.scene, this.cameraManager.camera);
   }
 
   public animate(): void {
