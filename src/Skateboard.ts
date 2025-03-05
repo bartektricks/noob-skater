@@ -9,6 +9,7 @@ export class Skateboard {
   private deceleration: number = 0.005;
   private turnSpeed: number = 0.03;
   private rotation: number = 0;
+  private airMoveDirection: number = 0;
   private wheels: THREE.Mesh[] = [];
   private keys: { [key: string]: boolean } = {};
   
@@ -63,8 +64,9 @@ export class Skateboard {
     const deckGeometry = new THREE.ExtrudeGeometry(deckShape, extrudeSettings);
     deckGeometry.scale(0.25, 0.1, 0.35);
     
+    // Yellow deck material
     const deckMaterial = new THREE.MeshStandardMaterial({ 
-      color: 0x333333, // Dark gray for the deck
+      color: 0xF7CA18, // Bright yellow
       roughness: 0.8,
       metalness: 0.2
     });
@@ -77,25 +79,25 @@ export class Skateboard {
 
     // Create trucks (metal parts that hold the wheels)
     const truckGeometry = new THREE.BoxGeometry(0.3, 0.1, 0.6);
-    const truckMaterial = new THREE.MeshStandardMaterial({ 
+    const truckMaterial = new THREE.MeshStandardMaterial({
       color: 0x888888,
       metalness: 0.8,
       roughness: 0.2
     });
-
+    
     // Front truck
     const frontTruck = new THREE.Mesh(truckGeometry, truckMaterial);
     frontTruck.position.set(0, 0.15, 0.6);
     this.mesh.add(frontTruck);
-
+    
     // Back truck
     const backTruck = new THREE.Mesh(truckGeometry, truckMaterial);
     backTruck.position.set(0, 0.15, -0.6);
     this.mesh.add(backTruck);
-
+    
     // Create wheels
     const wheelGeometry = new THREE.CylinderGeometry(0.15, 0.15, 0.2, 32);
-    const wheelMaterial = new THREE.MeshStandardMaterial({ 
+    const wheelMaterial = new THREE.MeshStandardMaterial({
       color: 0x222222,
       roughness: 0.3,
       metalness: 0.7
@@ -107,7 +109,7 @@ export class Skateboard {
       { x: -0.3, y: 0.15, z: -0.7, isFront: false },
       { x: 0.3, y: 0.15, z: -0.7, isFront: false }
     ];
-
+    
     wheelPositions.forEach(pos => {
       const wheel = new THREE.Mesh(wheelGeometry, wheelMaterial);
       wheel.position.set(pos.x, pos.y, pos.z);
@@ -120,7 +122,7 @@ export class Skateboard {
     // Set up keyboard controls
     this.setupControls();
   }
-  
+    
   private setupControls(): void {
     document.addEventListener('keydown', (event) => {
       this.keys[event.key.toLowerCase()] = true;
@@ -137,6 +139,9 @@ export class Skateboard {
   }
   
   private jump(): void {
+    // Store current rotation as the air movement direction when jumping
+    this.airMoveDirection = this.rotation;
+
     // Apply upward force with boost based on current speed
     const speedFactor = 1.0 + Math.abs(this._speed) * this.jumpBoost;
     this.verticalVelocity = this.jumpForce * speedFactor;
@@ -174,8 +179,8 @@ export class Skateboard {
       }
     }
 
-    // Handle steering - only turn if the skateboard is moving
-    if (Math.abs(this._speed) > 0.01) { // Small threshold to prevent turning when almost stopped
+    // Handle steering - only allow turning if the skateboard is on the ground and moving
+    if (this._isGrounded && Math.abs(this._speed) > 0.01) { // Small threshold to prevent turning when almost stopped
       if (this.keys['a']) {
         this.rotation += this.turnSpeed * (this._speed > 0 ? 1 : -1);
       }
@@ -184,12 +189,33 @@ export class Skateboard {
       }
     }
 
-    // Apply rotation
+    // Allow rotation in air with A and D keys, but don't affect movement direction
+    if (!this._isGrounded) {
+      if (this.keys['a']) {
+        // Rotate board around Y axis (faster rotation in air for trick effect)
+        this.rotation += this.turnSpeed * 1.5;
+      }
+      if (this.keys['d']) {
+        // Rotate board around Y axis (faster rotation in air for trick effect)
+        this.rotation -= this.turnSpeed * 1.5;
+      }
+    }
+
+    // Apply rotation to the mesh
     this.mesh.rotation.y = this.rotation;
 
     // Calculate movement with improved physics
-    const moveX = Math.sin(this.rotation) * this._speed * delta * 60;
-    const moveZ = Math.cos(this.rotation) * this._speed * delta * 60;
+    let moveX, moveZ;
+    
+    if (this._isGrounded) {
+      // On ground: move in the direction the board is facing
+      moveX = Math.sin(this.rotation) * this._speed * delta * 60;
+      moveZ = Math.cos(this.rotation) * this._speed * delta * 60;
+    } else {
+      // In air: move in the stored direction regardless of board rotation
+      moveX = Math.sin(this.airMoveDirection) * this._speed * delta * 60;
+      moveZ = Math.cos(this.airMoveDirection) * this._speed * delta * 60;
+    }
 
     // Update horizontal position with smoother movement
     this.mesh.position.x += moveX;
@@ -219,6 +245,9 @@ export class Skateboard {
       
       this.verticalVelocity = 0;
       this._isGrounded = true;
+      
+      // Reset air movement direction to current rotation when landing
+      this.airMoveDirection = this.rotation;
     }
     
     // Apply skateboard tilt based on vertical movement and direction
@@ -237,5 +266,10 @@ export class Skateboard {
       this.mesh.rotation.x = 0;
       this.mesh.rotation.z = 0;
     }
+  }
+
+  // Add a method to get the movement direction (useful for camera)
+  public getMovementDirection(): number {
+    return this._isGrounded ? this.rotation : this.airMoveDirection;
   }
 } 

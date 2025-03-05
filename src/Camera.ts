@@ -61,10 +61,13 @@ export class Camera {
     
     // Get skateboard position and rotation
     const skateboardPosition = this.skateboard.mesh.position.clone();
-    const skateboardRotation = this.skateboard.mesh.rotation.y;
+    
+    // Use the proper direction based on whether the skateboard is grounded or not
+    // When in air, we use the movement direction instead of the board's visual rotation
+    const directionToFollow = this.skateboard.getMovementDirection();
     
     // Calculate angle for camera position (behind the skateboard)
-    const cameraAngle = skateboardRotation + Math.PI + this.state.angleOffset;
+    const cameraAngle = directionToFollow + Math.PI + this.state.angleOffset;
     
     // Calculate camera position behind the skateboard
     const offsetX = Math.sin(cameraAngle) * this.state.distance;
