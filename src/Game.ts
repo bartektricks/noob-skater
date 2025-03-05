@@ -34,6 +34,9 @@ export class Game {
 
     // Create UI
     this.ui = new UI(this.skateboard);
+    
+    // Connect UI to skateboard for trick display
+    this.skateboard.setUI(this.ui);
 
     // Setup lighting
     const ambientLight = new THREE.AmbientLight(0xffffff, 0.5);

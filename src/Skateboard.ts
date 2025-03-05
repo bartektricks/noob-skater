@@ -1,4 +1,5 @@
 import * as THREE from 'three';
+import { UI } from './UI';
 
 export class Skateboard {
   public mesh: THREE.Group;
@@ -10,10 +11,33 @@ export class Skateboard {
   private rotation: number = 0;
   private wheels: THREE.Mesh[] = [];
   private keys: { [key: string]: boolean } = {};
+  
+  // Jumping physics variables
+  private verticalVelocity: number = 0;
+  private gravity: number = 0.015;
+  private jumpForce: number = 0.3;
+  private _isGrounded: boolean = true; // Tracks if skateboard is on the ground
+  private groundLevel: number = 0; // Default ground level
+  private canJump: boolean = true; // Prevents jump spamming
+  private jumpCooldown: number = 300; // ms before able to jump again
+  private jumpBoost: number = 1.0; // Multiplier for jump force based on speed
+  
+  // UI reference
+  private ui: UI | null = null;
 
   // Getter for speed to make it accessible to UI
   public get speed(): number {
     return this._speed;
+  }
+  
+  // Getter for ground state to make it accessible to UI
+  public get isGrounded(): boolean {
+    return this._isGrounded;
+  }
+  
+  // Method to set UI reference
+  public setUI(ui: UI): void {
+    this.ui = ui;
   }
 
   constructor() {
@@ -93,18 +117,46 @@ export class Skateboard {
       this.wheels.push(wheel);
     });
 
-    // Setup controls
+    // Set up keyboard controls
     this.setupControls();
   }
-
+  
   private setupControls(): void {
     document.addEventListener('keydown', (event) => {
       this.keys[event.key.toLowerCase()] = true;
+      
+      // Handle jump with spacebar
+      if (event.key === ' ' && this._isGrounded && this.canJump) {
+        this.jump();
+      }
     });
 
     document.addEventListener('keyup', (event) => {
       this.keys[event.key.toLowerCase()] = false;
     });
+  }
+  
+  private jump(): void {
+    // Apply upward force with boost based on current speed
+    const speedFactor = 1.0 + Math.abs(this._speed) * this.jumpBoost;
+    this.verticalVelocity = this.jumpForce * speedFactor;
+    this._isGrounded = false;
+    this.canJump = false;
+    
+    // Show "Ollie" text using UI
+    if (this.ui) {
+      this.ui.showTrickText("Ollie");
+    }
+    
+    // Allow jumping again after cooldown (prevents jump spamming)
+    setTimeout(() => {
+      this.canJump = true;
+    }, this.jumpCooldown);
+    
+    // Add a little forward boost when jumping at speed
+    if (Math.abs(this._speed) > 0.05) {
+      this._speed *= 1.1; // 10% speed boost on jump
+    }
   }
 
   public update(delta: number): void {
@@ -139,8 +191,51 @@ export class Skateboard {
     const moveX = Math.sin(this.rotation) * this._speed * delta * 60;
     const moveZ = Math.cos(this.rotation) * this._speed * delta * 60;
 
-    // Update position with smoother movement
+    // Update horizontal position with smoother movement
     this.mesh.position.x += moveX;
     this.mesh.position.z += moveZ;
+    
+    // Apply jumping physics
+    this.updateVerticalPosition(delta);
+  }
+  
+  private updateVerticalPosition(delta: number): void {
+    // Apply gravity to vertical velocity
+    this.verticalVelocity -= this.gravity * delta * 60;
+    
+    // Update vertical position
+    this.mesh.position.y += this.verticalVelocity * delta * 60;
+    
+    // Check for ground collision
+    if (this.mesh.position.y <= this.groundLevel) {
+      this.mesh.position.y = this.groundLevel;
+      
+      // Add landing effect - reduce speed slightly on landing from height
+      if (!this._isGrounded && this.verticalVelocity < -0.1) {
+        // Harder landings have more impact on speed
+        const landingImpact = Math.min(Math.abs(this.verticalVelocity) * 0.5, 0.4);
+        this._speed *= (1 - landingImpact);
+      }
+      
+      this.verticalVelocity = 0;
+      this._isGrounded = true;
+    }
+    
+    // Apply skateboard tilt based on vertical movement and direction
+    if (!this._isGrounded) {
+      // Tilt the skateboard based on vertical velocity
+      const tiltAmount = Math.min(Math.max(this.verticalVelocity * 0.5, -0.3), 0.3);
+      
+      // Apply forward tilt when jumping and backward tilt when falling
+      this.mesh.rotation.x = -tiltAmount;
+      
+      // Add a slight roll effect during jumps for style
+      const rollFactor = Math.sin(Date.now() * 0.003) * 0.05;
+      this.mesh.rotation.z = rollFactor;
+    } else {
+      // Reset tilt when on ground
+      this.mesh.rotation.x = 0;
+      this.mesh.rotation.z = 0;
+    }
   }
 } 
