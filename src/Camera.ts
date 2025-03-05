@@ -1,21 +1,31 @@
 import * as THREE from 'three';
 
+type State = {
+  orbit: number;
+  elevation: number;
+  distance: number;
+  height: number;
+  verticalFraming: number;
+}
+
+const INITIAL_STATE: State = {
+  // Horizontal orbit angle in radians (around Y axis)
+  orbit: 0,
+  // Vertical angle in radians (0 = horizontal, π/2 = looking down)
+  elevation: 0.5,
+  // Distance from target
+  distance: 7.5,
+  // Height offset from target
+  height: 0,
+  // Vertical framing offset - positive moves target lower in frame
+  verticalFraming: -0.3
+}
+
 export class Camera {
   public camera: THREE.PerspectiveCamera;
   private target: THREE.Vector3;
   private debugContainer: HTMLDivElement | null = null;
-  
-  // Camera state
-  private state = {
-    // Horizontal orbit angle in radians (around Y axis)
-    orbit: 0,
-    // Vertical angle in radians (0 = horizontal, π/2 = looking down)
-    elevation: Math.PI / 6,
-    // Distance from target
-    distance: 10,
-    // Height offset from target
-    height: 2
-  };
+  private state = INITIAL_STATE
 
   constructor(aspectRatio: number) {
     // Create camera
@@ -29,16 +39,13 @@ export class Camera {
     // Default target
     this.target = new THREE.Vector3(0, 2, 0);
     
-    // Set initial camera position
     this.updateCamera();
-    
-    // Create debug UI if in development mode
     this.setupDebugUI();
   }
   
   private updateCamera(): void {
     // Calculate camera position based on orbit and elevation angles
-    const { orbit, elevation, distance, height } = this.state;
+    const { orbit, elevation, distance, height, verticalFraming } = this.state;
     
     // Calculate horizontal position (orbit around y-axis)
     const horizontalDistance = distance * Math.cos(elevation);
@@ -48,9 +55,15 @@ export class Camera {
     // Calculate vertical position (based on elevation angle and height)
     const y = this.target.y + height + distance * Math.sin(elevation);
     
-    // Update camera position and look at target
+    // Update camera position
     this.camera.position.set(x, y, z);
-    this.camera.lookAt(this.target);
+    
+    // Create an adjusted target that's shifted down to position the model in the bottom quarter
+    const adjustedTarget = this.target.clone();
+    adjustedTarget.y -= verticalFraming * this.camera.position.distanceTo(this.target);
+    
+    // Look at the adjusted target
+    this.camera.lookAt(adjustedTarget);
   }
   
   public setTarget(target: THREE.Vector3): void {
@@ -93,13 +106,15 @@ export class Camera {
     this.updateDebugUI();
   }
   
+  public setVerticalFraming(value: number): void {
+    // Limit the range to reasonable values
+    this.state.verticalFraming = Math.max(-0.3, Math.min(0.5, value));
+    this.updateCamera();
+    this.updateDebugUI();
+  }
+  
   public reset(): void {
-    this.state = {
-      orbit: 0,
-      elevation: Math.PI / 6,
-      distance: 10,
-      height: 2
-    };
+    this.state = INITIAL_STATE;
     this.updateCamera();
     this.updateDebugUI();
   }
@@ -117,20 +132,19 @@ export class Camera {
     this.debugContainer.style.borderRadius = '5px';
     this.debugContainer.style.fontFamily = 'Arial, sans-serif';
     this.debugContainer.style.minWidth = '250px';
+    this.debugContainer.style.display = 'none';
     
-    // Title
     const title = document.createElement('h3');
     title.textContent = 'Camera Controls';
     title.style.margin = '0 0 10px 0';
     this.debugContainer.appendChild(title);
     
-    // Add sliders for each camera parameter
     this.createSlider('Orbit', 0, Math.PI * 2, 0.01, this.state.orbit, (value) => this.setOrbit(value));
     this.createSlider('Elevation', 0.1, Math.PI / 2 - 0.1, 0.01, this.state.elevation, (value) => this.setElevation(value));
     this.createSlider('Distance', 2, 30, 0.5, this.state.distance, (value) => this.setDistance(value));
     this.createSlider('Height', 0, 10, 0.1, this.state.height, (value) => this.setHeight(value));
+    this.createSlider('Vertical Framing', -0.3, 0.5, 0.01, this.state.verticalFraming, (value) => this.setVerticalFraming(value));
     
-    // Add reset button
     const resetButton = document.createElement('button');
     resetButton.textContent = 'Reset Camera';
     resetButton.style.marginTop = '10px';
@@ -138,7 +152,6 @@ export class Camera {
     resetButton.addEventListener('click', () => this.reset());
     this.debugContainer.appendChild(resetButton);
     
-    // Add toggle button
     const toggleContainer = document.createElement('div');
     toggleContainer.style.position = 'fixed';
     toggleContainer.style.left = '20px';
