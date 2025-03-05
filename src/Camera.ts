@@ -1,31 +1,31 @@
 import * as THREE from 'three';
+import { Skateboard } from './Skateboard';
 
 type State = {
-  orbit: number;
-  elevation: number;
+  // Distance behind the skateboard
   distance: number;
+  // Height offset from skateboard
   height: number;
+  // Vertical framing offset - positive moves target lower in frame
   verticalFraming: number;
+  // Angle offset from skateboard's rotation (in radians)
+  angleOffset: number;
 }
 
 const INITIAL_STATE: State = {
-  // Horizontal orbit angle in radians (around Y axis)
-  orbit: 0,
-  // Vertical angle in radians (0 = horizontal, π/2 = looking down)
-  elevation: 0.5,
-  // Distance from target
-  distance: 7.5,
-  // Height offset from target
-  height: 0,
-  // Vertical framing offset - positive moves target lower in frame
-  verticalFraming: -0.3
-}
+  distance: 5.5,
+  height: 2,
+  verticalFraming: -0.3,
+  angleOffset: 0
+};
 
 export class Camera {
   public camera: THREE.PerspectiveCamera;
   private target: THREE.Vector3;
   private debugContainer: HTMLDivElement | null = null;
-  private state = INITIAL_STATE
+  private skateboard: Skateboard | null = null;
+  private state = INITIAL_STATE;
+  private sliderElements: {[key: string]: {slider: HTMLInputElement, valueDisplay: HTMLSpanElement}} = {};
 
   constructor(aspectRatio: number) {
     // Create camera
@@ -39,28 +39,69 @@ export class Camera {
     // Default target
     this.target = new THREE.Vector3(0, 2, 0);
     
+    // Set initial camera position
     this.updateCamera();
+    
+    // Create debug UI
     this.setupDebugUI();
   }
   
+  public setSkateboardReference(skateboard: Skateboard): void {
+    this.skateboard = skateboard;
+    // Ensure camera is updated with correct settings after skateboard is set
+    this.reset(); // This will apply INITIAL_STATE and update the camera
+  }
+  
   private updateCamera(): void {
-    // Calculate camera position based on orbit and elevation angles
-    const { orbit, elevation, distance, height, verticalFraming } = this.state;
+    if (!this.skateboard) {
+      // Fall back to old behavior if skateboard reference is not set
+      this.updateCameraStatic();
+      return;
+    }
     
-    // Calculate horizontal position (orbit around y-axis)
-    const horizontalDistance = distance * Math.cos(elevation);
-    const x = this.target.x + horizontalDistance * Math.sin(orbit);
-    const z = this.target.z + horizontalDistance * Math.cos(orbit);
+    // Get skateboard position and rotation
+    const skateboardPosition = this.skateboard.mesh.position.clone();
+    const skateboardRotation = this.skateboard.mesh.rotation.y;
     
-    // Calculate vertical position (based on elevation angle and height)
-    const y = this.target.y + height + distance * Math.sin(elevation);
+    // Calculate angle for camera position (behind the skateboard)
+    const cameraAngle = skateboardRotation + Math.PI + this.state.angleOffset;
+    
+    // Calculate camera position behind the skateboard
+    const offsetX = Math.sin(cameraAngle) * this.state.distance;
+    const offsetZ = Math.cos(cameraAngle) * this.state.distance;
+    
+    // Set camera position
+    this.camera.position.x = skateboardPosition.x + offsetX;
+    this.camera.position.z = skateboardPosition.z + offsetZ;
+    this.camera.position.y = skateboardPosition.y + this.state.height;
+    
+    // Calculate look target with vertical framing adjustment
+    const lookTarget = skateboardPosition.clone();
+    lookTarget.y -= this.state.verticalFraming * this.state.distance;
+    
+    // Look at the skateboard
+    this.camera.lookAt(lookTarget);
+    
+    // Update internal target reference to match skateboard position
+    this.target.copy(skateboardPosition);
+  }
+  
+  // Original static camera method preserved for backward compatibility
+  private updateCameraStatic(): void {
+    // Calculate horizontal position using orbit
+    const horizontalDistance = this.state.distance;
+    const x = this.target.x;
+    const z = this.target.z - horizontalDistance;
+    
+    // Calculate vertical position
+    const y = this.target.y + this.state.height;
     
     // Update camera position
     this.camera.position.set(x, y, z);
     
-    // Create an adjusted target that's shifted down to position the model in the bottom quarter
+    // Create an adjusted target for vertical framing
     const adjustedTarget = this.target.clone();
-    adjustedTarget.y -= verticalFraming * this.camera.position.distanceTo(this.target);
+    adjustedTarget.y -= this.state.verticalFraming * this.state.distance;
     
     // Look at the adjusted target
     this.camera.lookAt(adjustedTarget);
@@ -76,22 +117,20 @@ export class Camera {
     this.camera.updateProjectionMatrix();
   }
   
+  /**
+   * Update method to be called every frame in the game loop
+   * Ensures the camera continuously follows the skateboard
+   */
+  public update(): void {
+    // Make sure we update the camera position every frame
+    if (this.skateboard) {
+      this.updateCamera();
+    }
+  }
+  
   // Camera state getters and setters
   public getState(): typeof this.state {
     return this.state;
-  }
-  
-  public setOrbit(value: number): void {
-    this.state.orbit = value;
-    this.updateCamera();
-    this.updateDebugUI();
-  }
-  
-  public setElevation(value: number): void {
-    // Clamp elevation to avoid gimbal lock
-    this.state.elevation = Math.max(0.1, Math.min(Math.PI / 2 - 0.1, value));
-    this.updateCamera();
-    this.updateDebugUI();
   }
   
   public setDistance(value: number): void {
@@ -113,8 +152,21 @@ export class Camera {
     this.updateDebugUI();
   }
   
+  public setAngleOffset(value: number): void {
+    // Angle offset in radians
+    this.state.angleOffset = value;
+    this.updateCamera();
+    this.updateDebugUI();
+  }
+  
   public reset(): void {
-    this.state = INITIAL_STATE;
+    // Create a fresh copy of INITIAL_STATE to avoid reference issues
+    this.state = {
+      distance: INITIAL_STATE.distance,
+      height: INITIAL_STATE.height,
+      verticalFraming: INITIAL_STATE.verticalFraming,
+      angleOffset: INITIAL_STATE.angleOffset
+    };
     this.updateCamera();
     this.updateDebugUI();
   }
@@ -139,11 +191,10 @@ export class Camera {
     title.style.margin = '0 0 10px 0';
     this.debugContainer.appendChild(title);
     
-    this.createSlider('Orbit', 0, Math.PI * 2, 0.01, this.state.orbit, (value) => this.setOrbit(value));
-    this.createSlider('Elevation', 0.1, Math.PI / 2 - 0.1, 0.01, this.state.elevation, (value) => this.setElevation(value));
     this.createSlider('Distance', 2, 30, 0.5, this.state.distance, (value) => this.setDistance(value));
     this.createSlider('Height', 0, 10, 0.1, this.state.height, (value) => this.setHeight(value));
     this.createSlider('Vertical Framing', -0.3, 0.5, 0.01, this.state.verticalFraming, (value) => this.setVerticalFraming(value));
+    this.createSlider('Angle Offset', -Math.PI/2, Math.PI/2, 0.01, this.state.angleOffset, (value) => this.setAngleOffset(value));
     
     const resetButton = document.createElement('button');
     resetButton.textContent = 'Reset Camera';
@@ -212,11 +263,36 @@ export class Camera {
     
     container.appendChild(slider);
     this.debugContainer.appendChild(container);
+    
+    // Store reference to the slider elements for later updates
+    const key = label.toLowerCase().replace(/\s+/g, '');
+    this.sliderElements[key] = { slider, valueDisplay };
   }
   
   private updateDebugUI(): void {
-    // This method would update slider positions when camera state changes programmatically
-    // Implementation would depend on how we track the slider elements
-    // For a complete implementation, we would need to store references to the slider elements
+    // Update the slider positions and values to match the current state
+    if (this.sliderElements['distance']) {
+      const { slider, valueDisplay } = this.sliderElements['distance'];
+      slider.value = this.state.distance.toString();
+      valueDisplay.textContent = this.state.distance.toFixed(2);
+    }
+    
+    if (this.sliderElements['height']) {
+      const { slider, valueDisplay } = this.sliderElements['height'];
+      slider.value = this.state.height.toString();
+      valueDisplay.textContent = this.state.height.toFixed(2);
+    }
+    
+    if (this.sliderElements['verticalframing']) {
+      const { slider, valueDisplay } = this.sliderElements['verticalframing'];
+      slider.value = this.state.verticalFraming.toString();
+      valueDisplay.textContent = this.state.verticalFraming.toFixed(2);
+    }
+    
+    if (this.sliderElements['angleoffset']) {
+      const { slider, valueDisplay } = this.sliderElements['angleoffset'];
+      slider.value = this.state.angleOffset.toString();
+      valueDisplay.textContent = this.state.angleOffset.toFixed(2);
+    }
   }
 } 

@@ -28,6 +28,9 @@ export class Game {
     // Create skateboard
     this.skateboard = new Skateboard();
     this.scene.add(this.skateboard.mesh);
+    
+    // Connect skateboard to camera
+    this.cameraManager.setSkateboardReference(this.skateboard);
 
     // Create UI
     this.ui = new UI(this.skateboard);
@@ -66,11 +69,13 @@ export class Game {
   }
   
   public setCameraOrbit(value: number): void {
-    this.cameraManager.setOrbit(value);
+    // This method no longer supported in the new camera system
+    console.warn('setCameraOrbit is no longer supported. Use angle offset instead.');
   }
   
   public setCameraElevation(value: number): void {
-    this.cameraManager.setElevation(value);
+    // This method no longer supported in the new camera system
+    console.warn('setCameraElevation is no longer supported.');
   }
   
   public setCameraDistance(value: number): void {
@@ -95,8 +100,8 @@ export class Game {
     this.skateboard.update(delta);
     this.ui.update();
     
-    // Update camera target to follow skateboard
-    this.cameraManager.setTarget(this.skateboard.mesh.position);
+    // Update the camera to follow the skateboard
+    this.cameraManager.update();
   }
 
   public render(): void {
