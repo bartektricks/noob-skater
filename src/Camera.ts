@@ -26,6 +26,13 @@ export class Camera {
   private skateboard: Skateboard | null = null;
   private state = INITIAL_STATE;
   private sliderElements: {[key: string]: {slider: HTMLInputElement, valueDisplay: HTMLSpanElement}} = {};
+  
+  // Tony Hawk style camera properties
+  private targetCameraAngle: number = 0; // Angle we're moving toward
+  private currentCameraAngle: number = 0; // Current actual camera angle
+  private cameraLerpFactor: number = 0.03; // How quickly camera rotates to new position (lower = slower)
+  private worldOriented: boolean = true; // Camera oriented to world not board
+  private lastUpdateTime: number = 0; // For frame-rate independent updates
 
   constructor(aspectRatio: number) {
     // Create camera
@@ -59,15 +66,58 @@ export class Camera {
       return;
     }
     
-    // Get skateboard position and rotation
-    const skateboardPosition = this.skateboard.mesh.position.clone();
+    // Get current time for smooth transitions
+    const currentTime = Date.now();
+    const deltaTime = Math.min((currentTime - this.lastUpdateTime) / 1000, 0.1); // Cap at 100ms to avoid jumps
+    this.lastUpdateTime = currentTime;
     
-    // Use the proper direction based on whether the skateboard is grounded or not
-    // When in air, we use the movement direction instead of the board's visual rotation
-    const directionToFollow = this.skateboard.getMovementDirection();
+    // Get skateboard position, rotation and movement info
+    const skateboardPosition = this.skateboard.mesh.position.clone();
+    const skateboardRotation = this.skateboard.mesh.rotation.y;
+    const isGrounded = this.skateboard.isGrounded;
+    const movementDirection = this.skateboard.getMovementDirection();
+    const speed = this.skateboard.speed;
+    const stance = this.skateboard.getStance();
+    
+    // Adjust camera behavior based on speed and state
+    if (Math.abs(speed) > 0.05) {
+      // Moving with significant speed - target movement direction
+      // When in fakie, adjust the target angle by 180 degrees to keep camera behind player
+      if (stance === "fakie") {
+        this.targetCameraAngle = this.normalizeAngle(movementDirection + Math.PI);
+      } else {
+        this.targetCameraAngle = movementDirection;
+      }
+    } else if (isGrounded) {
+      // Standing still on ground - slowly align with board orientation
+      // When in fakie, adjust the target angle by 180 degrees
+      if (stance === "fakie") {
+        this.targetCameraAngle = this.normalizeAngle(skateboardRotation + Math.PI);
+      } else {
+        this.targetCameraAngle = skateboardRotation;
+      }
+    }
+    // When in air with low speed, keep the current target angle (for stability during tricks)
+    
+    // Smoothly interpolate current camera angle toward target angle (Tony Hawk style)
+    // Calculate shortest path to target angle
+    const angleDiff = this.normalizeAngle(this.targetCameraAngle - this.currentCameraAngle);
+    
+    // Adjust lerp factor based on grounded state and speed
+    let actualLerpFactor = this.cameraLerpFactor;
+    if (!isGrounded) {
+      // Slower camera rotation in air
+      actualLerpFactor *= 0.5;
+    } else if (Math.abs(speed) > 0.3) {
+      // Faster camera rotation at high speeds
+      actualLerpFactor *= 1.5;
+    }
+    
+    // Apply smooth lerping with deltaTime for frame-rate independence
+    this.currentCameraAngle += angleDiff * actualLerpFactor * (deltaTime * 60);
     
     // Calculate angle for camera position (behind the skateboard)
-    const cameraAngle = directionToFollow + Math.PI + this.state.angleOffset;
+    const cameraAngle = this.currentCameraAngle + Math.PI + this.state.angleOffset;
     
     // Calculate camera position behind the skateboard
     const offsetX = Math.sin(cameraAngle) * this.state.distance;
@@ -162,6 +212,9 @@ export class Camera {
     this.updateDebugUI();
   }
   
+  /**
+   * Reset camera settings and states
+   */
   public reset(): void {
     // Create a fresh copy of INITIAL_STATE to avoid reference issues
     this.state = {
@@ -170,6 +223,20 @@ export class Camera {
       verticalFraming: INITIAL_STATE.verticalFraming,
       angleOffset: INITIAL_STATE.angleOffset
     };
+    
+    // Reset THPS camera properties
+    if (this.skateboard) {
+      // Initialize camera angles to current board direction
+      this.currentCameraAngle = this.skateboard.mesh.rotation.y;
+      this.targetCameraAngle = this.skateboard.mesh.rotation.y;
+    } else {
+      this.currentCameraAngle = 0;
+      this.targetCameraAngle = 0;
+    }
+    
+    this.lastUpdateTime = Date.now();
+    this.worldOriented = true;
+    
     this.updateCamera();
     this.updateDebugUI();
   }
@@ -198,6 +265,7 @@ export class Camera {
     this.createSlider('Height', 0, 10, 0.1, this.state.height, (value) => this.setHeight(value));
     this.createSlider('Vertical Framing', -0.3, 0.5, 0.01, this.state.verticalFraming, (value) => this.setVerticalFraming(value));
     this.createSlider('Angle Offset', -Math.PI/2, Math.PI/2, 0.01, this.state.angleOffset, (value) => this.setAngleOffset(value));
+    this.createSlider('Camera Smoothing', 0.005, 0.2, 0.005, this.cameraLerpFactor, (value) => this.setCameraSmoothing(value));
     
     const resetButton = document.createElement('button');
     resetButton.textContent = 'Reset Camera';
@@ -297,5 +365,22 @@ export class Camera {
       slider.value = this.state.angleOffset.toString();
       valueDisplay.textContent = this.state.angleOffset.toFixed(2);
     }
+  }
+  
+  /**
+   * Normalize an angle to be between -PI and PI
+   */
+  private normalizeAngle(angle: number): number {
+    while (angle > Math.PI) angle -= Math.PI * 2;
+    while (angle < -Math.PI) angle += Math.PI * 2;
+    return angle;
+  }
+
+  /**
+   * Set the camera smoothing factor (how quickly it follows the target)
+   */
+  public setCameraSmoothing(value: number): void {
+    this.cameraLerpFactor = Math.max(0.005, Math.min(0.2, value));
+    this.updateDebugUI();
   }
 } 
