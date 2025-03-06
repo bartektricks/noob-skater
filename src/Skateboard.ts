@@ -23,6 +23,12 @@ export class Skateboard {
   private jumpCooldown: number = 300; // ms before able to jump again
   private jumpBoost: number = 1.0; // Multiplier for jump force based on speed
   
+  // 360 Flip variables
+  private isDoingFlip: boolean = false;
+  private flipStartTime: number = 0;
+  private flipDuration: number = 500; // milliseconds
+  private flipProgress: number = 0;
+  
   // UI reference
   private ui: UI | null = null;
 
@@ -139,6 +145,11 @@ export class Skateboard {
       if (event.key === ' ' && this._isGrounded && this.canJump) {
         this.jump();
       }
+      
+      // Handle 360 flip with J key while in air
+      if (event.key.toLowerCase() === 'j' && !this._isGrounded && !this.isDoingFlip) {
+        this.start360Flip();
+      }
     });
 
     document.addEventListener('keyup', (event) => {
@@ -174,6 +185,43 @@ export class Skateboard {
     setTimeout(() => {
       this.canJump = true;
     }, this.jumpCooldown);
+  }
+
+  private start360Flip(): void {
+    // Only start flip if not already doing one
+    if (this.isDoingFlip) return;
+    
+    this.isDoingFlip = true;
+    this.flipStartTime = Date.now();
+    this.flipProgress = 0;
+    
+    // Show trick text
+    if (this.ui) {
+      if (this.movementFlipped) {
+        this.ui.showTrickText("Fakie 360 Flip");
+      } else {
+        this.ui.showTrickText("360 Flip");
+      }
+    }
+  }
+  
+  private update360Flip(): void {
+    if (!this.isDoingFlip) return;
+    
+    const currentTime = Date.now();
+    const elapsedTime = currentTime - this.flipStartTime;
+    
+    // Calculate progress (0 to 1)
+    this.flipProgress = Math.min(elapsedTime / this.flipDuration, 1);
+    
+    // Apply 360-degree rotation around z-axis
+    this.mesh.rotation.z = Math.PI * 2 * this.flipProgress;
+    
+    // Check if flip is complete
+    if (this.flipProgress >= 1) {
+      this.isDoingFlip = false;
+      this.mesh.rotation.z = 0; // Reset z rotation
+    }
   }
 
   public update(delta: number): void {
@@ -214,6 +262,11 @@ export class Skateboard {
         // Rotate board around Y axis (faster rotation in air for trick effect)
         this.rotation -= this.turnSpeed * 1.5;
       }
+    }
+    
+    // Update 360 flip if in progress
+    if (this.isDoingFlip) {
+      this.update360Flip();
     }
     
     // Update reorientation if active
@@ -257,6 +310,34 @@ export class Skateboard {
     if (this.mesh.position.y <= this.groundLevel) {
       this.mesh.position.y = this.groundLevel;
       
+      // Check if landing during an incomplete 360 flip - fail the trick
+      if (this.isDoingFlip && this.flipProgress < 0.9) {
+        // Show bail message
+        if (this.ui) {
+          this.ui.showTrickText("Bail!");
+        }
+        
+        // Reduce speed significantly due to bail
+        this._speed *= 0.3; 
+      } 
+      // Check if landing during a nearly complete 360 flip - count it as landed
+      else if (this.isDoingFlip && this.flipProgress >= 0.9) {
+        // Show landed message
+        if (this.ui) {
+          if (this.movementFlipped) {
+            this.ui.showTrickText("Fakie 360 Flip Landed!");
+          } else {
+            this.ui.showTrickText("360 Flip Landed!");
+          }
+        }
+      }
+      
+      // Reset flip state when landing
+      if (this.isDoingFlip) {
+        this.isDoingFlip = false;
+        this.mesh.rotation.z = 0; // Reset z rotation
+      }
+      
       // Add landing effect - reduce speed slightly on landing from height
       if (!this._isGrounded && this.verticalVelocity < -0.1) {
         // Harder landings have more impact on speed
@@ -283,9 +364,11 @@ export class Skateboard {
       // Apply forward tilt when jumping and backward tilt when falling
       this.mesh.rotation.x = -tiltAmount;
       
-      // Add a slight roll effect during jumps for style
-      const rollFactor = Math.sin(Date.now() * 0.003) * 0.05;
-      this.mesh.rotation.z = rollFactor;
+      // Add a slight roll effect during jumps for style, but only if not doing a 360 flip
+      if (!this.isDoingFlip) {
+        const rollFactor = Math.sin(Date.now() * 0.003) * 0.05;
+        this.mesh.rotation.z = rollFactor;
+      }
     } else {
       // Reset tilt when on ground
       this.mesh.rotation.x = 0;
