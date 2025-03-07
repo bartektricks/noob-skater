@@ -2,11 +2,11 @@ import * as THREE from 'three';
 
 export class Rail {
   public mesh: THREE.Group;
-  private railLength: number = 10;
+  public railLength: number = 10;
   private railHeight: number = 0.8; // Increased height for better visibility
   private railWidth: number = 0.15; // Increased width for better visibility
-  private startPosition: THREE.Vector3;
-  private endPosition: THREE.Vector3;
+  public startPosition: THREE.Vector3;
+  public endPosition: THREE.Vector3;
   private direction: THREE.Vector3;
   
   constructor(startX: number, startZ: number, endX: number, endZ: number) {
@@ -92,12 +92,73 @@ export class Rail {
     return closestPoint;
   }
   
-  // Check if a position is close enough to the rail for grinding
-  public isNearRail(position: THREE.Vector3, threshold: number = 3.0): boolean {
+  // Calculate magnetic attraction force towards the rail
+  public calculateAttractionForce(position: THREE.Vector3): THREE.Vector3 {
     const closestPoint = this.getClosestPointOnRail(position);
-    const distance = position.distanceTo(closestPoint);
-    console.log("Distance to rail:", distance, "threshold:", threshold);
-    return distance < threshold;
+    
+    // Calculate horizontal distance (X and Z only)
+    const horizontalDistance = Math.sqrt(
+      Math.pow(position.x - closestPoint.x, 2) + 
+      Math.pow(position.z - closestPoint.z, 2)
+    );
+    
+    // Calculate vertical distance (Y only)
+    const verticalDistance = Math.abs(position.y - closestPoint.y);
+    
+    // Define attraction field ranges
+    const maxHorizontalRange = 4.0;  // Max horizontal distance where attraction starts
+    const maxVerticalRange = 5.0;    // Max vertical distance where attraction starts
+    
+    // No attraction if outside the max range
+    if (horizontalDistance > maxHorizontalRange || verticalDistance > maxVerticalRange) {
+      return new THREE.Vector3(0, 0, 0);
+    }
+    
+    // Calculate horizontal attraction (stronger when closer)
+    const horizontalStrength = 1.0 - (horizontalDistance / maxHorizontalRange);
+    const horizontalAttractionMultiplier = 0.015; // Adjust strength as needed
+    
+    // Calculate vertical attraction (stronger when closer but gentler than horizontal)
+    const verticalStrength = 1.0 - (verticalDistance / maxVerticalRange);
+    const verticalAttractionMultiplier = 0.01; // Adjust strength as needed
+    
+    // Direction vector from current position to closest point
+    const directionToRail = new THREE.Vector3(
+      closestPoint.x - position.x,
+      closestPoint.y - position.y,
+      closestPoint.z - position.z
+    ).normalize();
+    
+    // Create the final force vector with appropriate strength
+    const attractionForce = new THREE.Vector3(
+      directionToRail.x * horizontalStrength * horizontalAttractionMultiplier,
+      directionToRail.y * verticalStrength * verticalAttractionMultiplier,
+      directionToRail.z * horizontalStrength * horizontalAttractionMultiplier
+    );
+    
+    return attractionForce;
+  }
+  
+  // Check if a position is close enough to the rail for grinding
+  public isNearRail(position: THREE.Vector3, threshold: number = 2.0): boolean {
+    const closestPoint = this.getClosestPointOnRail(position);
+    
+    // Calculate horizontal distance (X and Z only)
+    const horizontalDistance = Math.sqrt(
+      Math.pow(position.x - closestPoint.x, 2) + 
+      Math.pow(position.z - closestPoint.z, 2)
+    );
+    
+    // Calculate vertical distance (Y only)
+    const verticalDistance = Math.abs(position.y - closestPoint.y);
+    
+    console.log("Distance to rail - Horizontal:", horizontalDistance, "Vertical:", verticalDistance);
+    
+    // Check if within both horizontal and vertical thresholds
+    const horizontalThreshold = 1.5;
+    const verticalThreshold = 3.5;
+    
+    return horizontalDistance < horizontalThreshold && verticalDistance < verticalThreshold;
   }
   
   // Get progress along the rail (0 at start, 1 at end)
