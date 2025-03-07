@@ -3,6 +3,7 @@ import { Skateboard } from './Skateboard';
 import { UI } from './UI';
 import { Camera } from './Camera';
 import { Rail } from './Rail';
+import { GameMenu, GameStartOptions } from './GameMenu';
 
 export class Game {
   private scene: THREE.Scene;
@@ -12,6 +13,10 @@ export class Game {
   private ui: UI;
   private clock: THREE.Clock;
   private rails: Rail[] = [];
+  private gameMenu: GameMenu;
+  private isGameRunning: boolean = false;
+  private playerNickname: string = '';
+  private serverType: string = 'local';
 
   constructor() {
     // Create scene
@@ -72,6 +77,55 @@ export class Game {
 
     // Handle window resize
     window.addEventListener('resize', this.onWindowResize.bind(this));
+    
+    // Add escape key listener for menu toggle
+    window.addEventListener('keydown', this.handleKeyDown.bind(this));
+    
+    // Create game menu
+    this.gameMenu = new GameMenu((options) => this.startGame(options));
+  }
+  
+  // Handle keyboard events
+  private handleKeyDown(event: KeyboardEvent): void {
+    // Toggle menu with Escape key
+    if (event.key === 'Escape') {
+      this.toggleMenu();
+    }
+  }
+  
+  // Toggle game menu
+  private toggleMenu(): void {
+    if (this.isGameRunning) {
+      // Pause the game
+      this.isGameRunning = false;
+      // Reset the clock to prevent large delta time on resume
+      this.clock.getDelta();
+      this.gameMenu.show();
+    } else {
+      // Resume the game if it was already started with a nickname
+      if (this.playerNickname) {
+        this.isGameRunning = true;
+        // Reset the clock to prevent large delta time on resume
+        this.clock.getDelta();
+        this.gameMenu.hide();
+      }
+    }
+  }
+  
+  // Start the game
+  public startGame(options: GameStartOptions): void {
+    this.playerNickname = options.nickname;
+    this.serverType = options.server;
+    
+    console.log(`Starting game for player: ${this.playerNickname} on server: ${this.serverType}`);
+    
+    // Update UI with player nickname
+    if (this.ui) {
+      this.ui.setPlayerNickname(this.playerNickname);
+    }
+    
+    this.isGameRunning = true;
+    this.clock.start();
   }
 
   // Create rails and add them to the scene
@@ -122,6 +176,8 @@ export class Game {
   }
 
   public update(): void {
+    if (!this.isGameRunning) return;
+    
     const delta = this.clock.getDelta();
     this.skateboard.update(delta);
     this.ui.update();

@@ -2,13 +2,16 @@ export class UI {
   private speedElement!: HTMLDivElement;
   private controlsElement!: HTMLDivElement;
   private trickTextElement!: HTMLDivElement;
+  private playerInfoElement!: HTMLDivElement;
   private skateboard: any; // Reference to the skateboard instance
+  private playerNickname: string = 'Player';
 
   constructor(skateboard: any) {
     this.skateboard = skateboard;
     this.createSpeedometer();
     this.createControlsInfo();
     this.createTrickText();
+    this.createPlayerInfo();
   }
 
   private createSpeedometer(): void {
@@ -23,6 +26,33 @@ export class UI {
     this.speedElement.style.borderRadius = '5px';
     this.speedElement.style.fontFamily = 'Arial, sans-serif';
     document.body.appendChild(this.speedElement);
+  }
+  
+  private createPlayerInfo(): void {
+    // Create player info container
+    this.playerInfoElement = document.createElement('div');
+    this.playerInfoElement.style.position = 'fixed';
+    this.playerInfoElement.style.top = '20px';
+    this.playerInfoElement.style.left = '20px';
+    this.playerInfoElement.style.backgroundColor = 'rgba(0, 0, 0, 0.7)';
+    this.playerInfoElement.style.color = 'white';
+    this.playerInfoElement.style.padding = '10px 20px';
+    this.playerInfoElement.style.borderRadius = '5px';
+    this.playerInfoElement.style.fontFamily = 'Arial, sans-serif';
+    this.updatePlayerInfo();
+    document.body.appendChild(this.playerInfoElement);
+  }
+  
+  private updatePlayerInfo(): void {
+    this.playerInfoElement.innerHTML = `
+      <div style="font-weight: bold;">${this.playerNickname}</div>
+      <div>Server: Local</div>
+    `;
+  }
+  
+  public setPlayerNickname(nickname: string): void {
+    this.playerNickname = nickname;
+    this.updatePlayerInfo();
   }
   
   private createControlsInfo(): void {
@@ -43,6 +73,8 @@ export class UI {
       <div>W/S - Accelerate/Brake</div>
       <div>A/D - Turn Left/Right</div>
       <div>Spacebar - Jump</div>
+      <div>J - 360 Flip (in air)</div>
+      <div>K - Grind (near rails)</div>
     `;
     
     document.body.appendChild(this.controlsElement);
