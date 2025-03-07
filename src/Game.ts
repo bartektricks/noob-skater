@@ -2,6 +2,7 @@ import * as THREE from 'three';
 import { Skateboard } from './Skateboard';
 import { UI } from './UI';
 import { Camera } from './Camera';
+import { Rail } from './Rail';
 
 export class Game {
   private scene: THREE.Scene;
@@ -10,6 +11,7 @@ export class Game {
   private skateboard: Skateboard;
   private ui: UI;
   private clock: THREE.Clock;
+  private rails: Rail[] = [];
 
   constructor() {
     // Create scene
@@ -37,6 +39,12 @@ export class Game {
     
     // Connect UI to skateboard for trick display
     this.skateboard.setUI(this.ui);
+
+    // Create and add rails
+    this.createRails();
+    
+    // Provide rails to the skateboard via dependency injection
+    this.skateboard.setRails(this.rails);
 
     // Setup lighting
     const ambientLight = new THREE.AmbientLight(0xffffff, 0.5);
@@ -66,8 +74,23 @@ export class Game {
     window.addEventListener('resize', this.onWindowResize.bind(this));
   }
 
+  // Create rails and add them to the scene
+  private createRails(): void {
+    // Create a long rail straight ahead
+    const rail1 = new Rail(-10, 10, 10, 10);
+    this.scene.add(rail1.mesh);
+    this.rails.push(rail1);
+    
+    // Create a second long rail at an angle 
+    const rail2 = new Rail(-20, -5, 20, 5);
+    this.scene.add(rail2.mesh);
+    this.rails.push(rail2);
+    
+    console.log("Rails created:", this.rails.length);
+  }
+
   // Camera getter and setter methods - these methods can be kept for backwards compatibility
-  public getCameraState(): any {
+  public getCameraState() {
     return this.cameraManager.getState();
   }
   

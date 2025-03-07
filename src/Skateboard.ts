@@ -1,5 +1,6 @@
 import * as THREE from 'three';
 import { UI } from './UI';
+import { Rail } from './Rail';
 
 export class Skateboard {
   public mesh: THREE.Group;
@@ -29,6 +30,14 @@ export class Skateboard {
   private flipDuration: number = 500; // milliseconds
   private flipProgress: number = 0;
   
+  // Rail grinding variables
+  private isGrinding: boolean = false;
+  private currentRail: Rail | null = null; // Will be set to a Rail instance when grinding
+  private grindSpeed: number = 0.2;
+  private grindProgress: number = 0;
+  private railExitVelocity: number = 0.2; // Speed when exiting rail
+  private rails: Rail[] = []; // Store rails directly in the class
+  
   // UI reference
   private ui: UI | null = null;
 
@@ -53,6 +62,12 @@ export class Skateboard {
   // Method to set UI reference
   public setUI(ui: UI): void {
     this.ui = ui;
+  }
+
+  // Method to set rails reference
+  public setRails(rails: Rail[]): void {
+    this.rails = rails;
+    console.log("Skateboard received", rails.length, "rails");
   }
 
   constructor() {
@@ -86,6 +101,11 @@ export class Skateboard {
     });
     
     const deck = new THREE.Mesh(deckGeometry, deckMaterial);
+    
+    // Position skateboard at starting position
+    // Place the skateboard closer to the rail for easier testing
+    this.mesh.position.set(0, this.groundLevel, 5);
+    
     deck.rotation.y = Math.PI / 2;
     deck.position.set(-0.345, 0.3, 0);
     deck.castShadow = true;
@@ -149,6 +169,16 @@ export class Skateboard {
       // Handle 360 flip with J key while in air
       if (event.key.toLowerCase() === 'j' && !this._isGrounded && !this.isDoingFlip) {
         this.start360Flip();
+      }
+      
+      // Handle rail grinding with K key when near a rail and in air
+      if (event.key.toLowerCase() === 'k' && !this._isGrounded && !this.isGrinding) {
+        this.tryStartGrinding();
+      }
+      
+      // Jump off rail with spacebar
+      if (event.key === ' ' && this.isGrinding) {
+        this.exitRail(true); // true = jump off
       }
     });
 
@@ -225,6 +255,12 @@ export class Skateboard {
   }
 
   public update(delta: number): void {
+    // If grinding, update grinding movement and skip normal movement
+    if (this.isGrinding) {
+      this.updateGrinding(delta);
+      return;
+    }
+    
     // Handle acceleration and deceleration with flipped controls if needed
     if ((this.keys['w'] && !this.movementFlipped) || (this.keys['s'] && this.movementFlipped)) {
       this._speed = Math.min(this._speed + this.acceleration, this.maxSpeed);
@@ -481,5 +517,141 @@ export class Skateboard {
   // Get the current stance (regular or fakie)
   public getStance(): string {
     return this.movementFlipped ? "fakie" : "regular";
+  }
+
+  // Try to start grinding on a nearby rail
+  private tryStartGrinding(): void {
+    // Skip if already grinding
+    if (this.isGrinding) return;
+    
+    // Look for a rail near the skateboard
+    console.log("Trying to find rails... Position:", this.mesh.position);
+    console.log("We have", this.rails.length, "rails to check");
+    
+    // Check each rail to see if we're close enough
+    for (const rail of this.rails) {
+      console.log("Checking rail:", rail);
+      if (rail.isNearRail(this.mesh.position)) {
+        console.log("Rail found nearby! Starting grind...");
+        this.startGrinding(rail);
+        return;
+      }
+    }
+    
+    console.log("No rails within range");
+  }
+  
+  // Start grinding on a specific rail
+  private startGrinding(rail: Rail): void {
+    this.isGrinding = true;
+    this.currentRail = rail;
+    
+    // Get closest point on the rail
+    const railPoint = rail.getClosestPointOnRail(this.mesh.position);
+    
+    // Set the skateboard's position to the rail's height
+    this.mesh.position.y = railPoint.y;
+    
+    // Align skateboard with the rail direction
+    const railDirection = rail.getDirection();
+    this.rotation = Math.atan2(railDirection.x, railDirection.z);
+    this.mesh.rotation.y = this.rotation;
+    
+    // Reset rotation on other axes
+    this.mesh.rotation.x = 0;
+    this.mesh.rotation.z = 0;
+    
+    // Calculate grind progress based on current position
+    this.grindProgress = rail.getProgressAlongRail(this.mesh.position);
+    
+    // Store the direction of travel based on our current speed
+    const speedSign = Math.sign(this._speed) || 1; // Default to 1 if speed is 0
+    this.grindSpeed = Math.abs(this.grindSpeed) * speedSign;
+    
+    // Show trick text based on stance
+    if (this.ui) {
+      if (this.movementFlipped) {
+        this.ui.showTrickText("Fakie Boardslide");
+      } else {
+        this.ui.showTrickText("Boardslide");
+      }
+    }
+    
+    // We're now grinding, so no longer in the air or on the ground
+    this._isGrounded = false;
+    this.verticalVelocity = 0;
+  }
+  
+  // Update grinding position along the rail
+  private updateGrinding(delta: number): void {
+    if (!this.isGrinding || !this.currentRail) return;
+    
+    // Update grind progress
+    this.grindProgress += this.grindSpeed * delta;
+    
+    // Check if we've reached the end of the rail
+    if (this.grindProgress <= 0 || this.grindProgress >= 1) {
+      // Exit the rail
+      this.exitRail(false);
+      return;
+    }
+    
+    // Get the new position along the rail
+    // Use getClosestPointOnRail with our progress to get position
+    const newPosition = new THREE.Vector3();
+    
+    // Calculate position along the rail based on progress
+    const railStart = this.currentRail.getClosestPointOnRail(this.currentRail.mesh.position);
+    const railEnd = this.currentRail.getClosestPointOnRail(
+      new THREE.Vector3().addVectors(
+        this.currentRail.mesh.position,
+        this.currentRail.getDirection().multiplyScalar(10) // Extend in direction
+      )
+    );
+    
+    // Interpolate between start and end
+    newPosition.lerpVectors(railStart, railEnd, this.grindProgress);
+    
+    // Update skateboard position
+    this.mesh.position.set(newPosition.x, newPosition.y, newPosition.z);
+    
+    // Keep aligned with rail
+    const railDirection = this.currentRail.getDirection();
+    this.rotation = Math.atan2(railDirection.x, railDirection.z);
+    this.mesh.rotation.y = this.rotation;
+    
+    // Add some tilt and wobble for style
+    const wobble = Math.sin(Date.now() * 0.01) * 0.1;
+    this.mesh.rotation.z = wobble;
+  }
+  
+  // Exit the rail (either by reaching the end or jumping off)
+  private exitRail(isJumping: boolean): void {
+    if (!this.isGrinding || !this.currentRail) return;
+    
+    // Store the rail direction for movement after exiting
+    const railDirection = this.currentRail.getDirection();
+    this.airMoveDirection = this.rotation;
+    
+    // Apply the exit velocity in the direction of the rail
+    const exitSpeed = this.railExitVelocity * (this.grindSpeed > 0 ? 1 : -1);
+    this._speed = exitSpeed;
+    
+    // If jumping, apply upward force
+    if (isJumping) {
+      this.verticalVelocity = this.jumpForce * 0.8; // Reduced jump from rail
+      
+      // Show trick text
+      if (this.ui) {
+        this.ui.showTrickText("Rail Exit");
+      }
+    }
+    
+    // Reset grinding state
+    this.isGrinding = false;
+    this.currentRail = null;
+    
+    // We're now in the air
+    this._isGrounded = false;
   }
 } 
