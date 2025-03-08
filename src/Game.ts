@@ -66,8 +66,8 @@ export class Game {
     // Create UI
     this.ui = new UI(this.skateboard);
     
-    // Connect UI to skateboard for trick display
-    this.skateboard.setUI(this.ui);
+    // Connect the exit button to the returnToMainMenu method
+    this.ui.setExitToMenuCallback(() => this.returnToMainMenu());
 
     // Create and add rails
     this.createRails();
@@ -116,9 +116,31 @@ export class Game {
   private handleKeyDown(event: KeyboardEvent): void {
     const key = event.key.toLowerCase();
     
-    // Handle menu toggle
+    // Handle pause menu toggle
     if (key === 'escape') {
-      this.toggleMenu();
+      if (this.isGameRunning) {
+        // Show pause menu when ESC is pressed during gameplay
+        this.ui.togglePauseMenu(true);
+        
+        // If hosting, show the server ID in the pause menu
+        if (this.isMultiplayer && this.isHost && this.hostConnectionCode) {
+          this.ui.setServerIdInPauseMenu(this.hostConnectionCode);
+        } else {
+          this.ui.setServerIdInPauseMenu(null);
+        }
+        
+        // Pause the game
+        this.isGameRunning = false;
+      } else {
+        // If game is already paused but pause menu is visible, hide it and resume
+        if (this.ui.getIsPauseMenuVisible()) {
+          this.ui.togglePauseMenu(false);
+          this.isGameRunning = true;
+        } else {
+          // Otherwise toggle the main menu (GameMenu)
+          this.toggleMenu();
+        }
+      }
       return;
     }
     
@@ -127,8 +149,11 @@ export class Game {
     // Network synchronization happens separately via position updates
   }
   
-  // Toggle game menu
+  // Toggle game menu or return to main menu from game
   private toggleMenu(): void {
+    // Always ensure the pause menu is hidden when toggling the main menu
+    this.ui.togglePauseMenu(false);
+    
     if (this.isGameRunning) {
       // Pausing the game - show menu
       this.isGameRunning = false;
@@ -139,11 +164,72 @@ export class Game {
       }
       
       this.gameMenu.show();
+      
+      // Hide the skateboard when in menu
+      if (this.skateboard && this.skateboard.mesh) {
+        this.skateboard.mesh.visible = false;
+      }
+      if (this.remoteSkateboard && this.remoteSkateboard.mesh) {
+        this.remoteSkateboard.mesh.visible = false;
+      }
     } else {
       // Resuming the game - hide menu
       this.isGameRunning = true;
       this.gameMenu.hide();
+      
+      // Show the skateboard when game is resumed
+      if (this.skateboard && this.skateboard.mesh) {
+        this.skateboard.mesh.visible = true;
+      }
+      if (this.remoteSkateboard && this.remoteSkateboard.mesh) {
+        this.remoteSkateboard.mesh.visible = true;
+      }
     }
+  }
+  
+  /**
+   * Return to the main menu, resetting the game state
+   */
+  private returnToMainMenu(): void {
+    // Hide pause menu if it's open
+    this.ui.togglePauseMenu(false);
+    
+    // Stop the game
+    this.isGameRunning = false;
+    
+    // Reset skateboard position and rotation
+    this.skateboard.mesh.position.set(0, 0, 5);
+    this.skateboard.mesh.rotation.set(0, 0, 0);
+    
+    // Hide skateboards
+    if (this.skateboard && this.skateboard.mesh) {
+      this.skateboard.mesh.visible = false;
+    }
+    if (this.remoteSkateboard && this.remoteSkateboard.mesh) {
+      this.remoteSkateboard.mesh.visible = false;
+    }
+    
+    // Clean up multiplayer if needed
+    if (this.isMultiplayer && this.networkManager) {
+      // Disconnect from peer
+      this.networkManager.disconnect();
+      this.isMultiplayer = false;
+      this.isHost = false;
+      this.hostConnectionCode = '';
+      
+      // Remove remote skateboard if it exists
+      if (this.remoteSkateboard) {
+        this.scene.remove(this.remoteSkateboard.mesh);
+        this.remoteSkateboard = null;
+      }
+    }
+    
+    // Reset camera
+    this.cameraManager.reset();
+    
+    // Reset the game menu to its initial state and show it
+    this.gameMenu.resetToInitialState();
+    this.gameMenu.show();
   }
   
   // Start the game
@@ -543,7 +629,6 @@ export class Game {
       this.sendNetworkUpdate();
     }
     
-    this.ui.update();
     this.cameraManager.update();
   }
 

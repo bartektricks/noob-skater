@@ -380,4 +380,38 @@ export class GameMenu {
     // Re-apply the toggle to hide/show appropriate elements
     this.toggleRoleOptions();
   }
+  
+  // Add this method to reset the menu to its initial state
+  public resetToInitialState(): void {
+    // Reset to show the full initial menu
+    this.isInitialStart = true;
+    
+    // Reset the form display
+    const form = this.menuContainer.querySelector('form')!;
+    form.style.display = 'block';
+    
+    // Hide the resume button
+    this.resumeButton.style.display = 'none';
+    
+    // Hide the pause title if it exists
+    const pauseTitle = document.getElementById('pause-menu-title');
+    if (pauseTitle) {
+      pauseTitle.style.display = 'none';
+    }
+    
+    // Reset connection info
+    const connectionInfoContainer = document.getElementById('connection-info-container');
+    if (connectionInfoContainer) {
+      connectionInfoContainer.style.display = 'none';
+    }
+    
+    // Clear the peer code
+    this.peerCodeDisplay.innerHTML = '<p>Your connection code will appear here after starting</p>';
+    
+    // Make sure all normal form elements are visible
+    this.resetMenuDisplay();
+    
+    // Reset peer code input
+    this.peerCodeInput.value = '';
+  }
 } 

@@ -5,7 +5,7 @@ import { Rail } from './Rail';
 export class Skateboard {
   public mesh: THREE.Group;
   private _speed: number = 0;
-  private maxSpeed: number = 0.5;
+  private maxSpeed: number = 0.3;
   private acceleration: number = 0.01;
   private deceleration: number = 0.005;
   private turnSpeed: number = 0.03;

@@ -1,29 +1,28 @@
 import { Skateboard } from './Skateboard';
 
 export class UI {
-  private speedElement!: HTMLDivElement;
   private controlsElement!: HTMLDivElement;
   private trickTextElement!: HTMLDivElement;
   private playerInfoElement!: HTMLDivElement;
+  private exitButtonElement!: HTMLButtonElement;
+  private pauseMenuElement!: HTMLDivElement; // Pause menu container
+  private serverIdElement!: HTMLDivElement; // Element to display server ID
   private skateboard: Skateboard;
   private playerNickname: string = 'Player';
-  private speedDisplay: HTMLDivElement;
   private trickDisplay: HTMLDivElement;
   private notificationDisplay: HTMLDivElement;
   private notificationTimeout: number | null = null;
   private connectionStatusDisplay: HTMLDivElement;
+  private onExitToMenu: (() => void) | null = null; // Callback for exit button
+  private isPauseMenuVisible: boolean = false; // Track pause menu visibility
 
   constructor(skateboard: Skateboard) {
     this.skateboard = skateboard;
-    this.createSpeedometer();
     this.createControlsInfo();
     this.createTrickText();
     this.createPlayerInfo();
+    this.createPauseMenu();
     
-    // Create speed display
-    this.speedDisplay = document.createElement('div');
-    this.speedDisplay.className = 'speed-display';
-    document.body.appendChild(this.speedDisplay);
     
     // Create trick display
     this.trickDisplay = document.createElement('div');
@@ -51,20 +50,6 @@ export class UI {
     this.connectionStatusDisplay.textContent = 'Disconnected';
     this.connectionStatusDisplay.style.display = 'none'; // Hidden by default
     document.body.appendChild(this.connectionStatusDisplay);
-  }
-
-  private createSpeedometer(): void {
-    // Create speedometer container
-    this.speedElement = document.createElement('div');
-    this.speedElement.style.position = 'fixed';
-    this.speedElement.style.top = '20px';
-    this.speedElement.style.right = '20px';
-    this.speedElement.style.backgroundColor = 'rgba(0, 0, 0, 0.7)';
-    this.speedElement.style.color = 'white';
-    this.speedElement.style.padding = '10px 20px';
-    this.speedElement.style.borderRadius = '5px';
-    this.speedElement.style.fontFamily = 'Arial, sans-serif';
-    document.body.appendChild(this.speedElement);
   }
   
   private createPlayerInfo(): void {
@@ -156,8 +141,7 @@ export class UI {
     // Add jump status indicator
     const isInAir = !this.skateboard.isGrounded; // Assuming isGrounded is accessible
     const airStatus = isInAir ? '<span style="color: yellow;"> (In Air!)</span>' : '';
-    
-    this.speedElement.innerHTML = `Speed: ${speedKmh.toFixed(1)} km/h${airStatus}`;
+  
   }
 
   /**
@@ -196,5 +180,154 @@ export class UI {
     this.connectionStatusDisplay.style.display = 'block';
     
     console.log("Connection status updated:", status);
+  }
+
+  /**
+   * Creates the pause menu that appears when ESC is pressed
+   */
+  private createPauseMenu(): void {
+    // Create pause menu container
+    this.pauseMenuElement = document.createElement('div');
+    this.pauseMenuElement.className = 'pause-menu';
+    this.pauseMenuElement.style.position = 'absolute';
+    this.pauseMenuElement.style.top = '0';
+    this.pauseMenuElement.style.left = '0';
+    this.pauseMenuElement.style.width = '100%';
+    this.pauseMenuElement.style.height = '100%';
+    this.pauseMenuElement.style.backgroundColor = 'rgba(0, 0, 0, 0.7)';
+    this.pauseMenuElement.style.display = 'none';
+    this.pauseMenuElement.style.zIndex = '2000';
+    this.pauseMenuElement.style.alignItems = 'center';
+    this.pauseMenuElement.style.justifyContent = 'center';
+    this.pauseMenuElement.style.flexDirection = 'column';
+    
+    // Create pause menu title
+    const title = document.createElement('h2');
+    title.textContent = 'Game Paused';
+    title.style.color = 'white';
+    title.style.marginBottom = '30px';
+    title.style.fontSize = '32px';
+    this.pauseMenuElement.appendChild(title);
+    
+    // Create server ID display element (initially hidden)
+    this.serverIdElement = document.createElement('div');
+    this.serverIdElement.className = 'server-id';
+    this.serverIdElement.style.color = 'white';
+    this.serverIdElement.style.backgroundColor = 'rgba(0, 0, 0, 0.5)';
+    this.serverIdElement.style.padding = '10px 15px';
+    this.serverIdElement.style.borderRadius = '4px';
+    this.serverIdElement.style.marginBottom = '20px';
+    this.serverIdElement.style.fontFamily = 'monospace';
+    this.serverIdElement.style.fontSize = '16px';
+    this.serverIdElement.style.display = 'none';
+    this.pauseMenuElement.appendChild(this.serverIdElement);
+    
+    // Create button container
+    const buttonContainer = document.createElement('div');
+    buttonContainer.style.display = 'flex';
+    buttonContainer.style.flexDirection = 'column';
+    buttonContainer.style.gap = '15px';
+    buttonContainer.style.width = '250px';
+    
+    // Create resume button
+    const resumeButton = document.createElement('button');
+    resumeButton.textContent = 'Resume Game';
+    resumeButton.style.padding = '12px 20px';
+    resumeButton.style.fontSize = '18px';
+    resumeButton.style.border = 'none';
+    resumeButton.style.borderRadius = '4px';
+    resumeButton.style.backgroundColor = '#4CAF50';
+    resumeButton.style.color = 'white';
+    resumeButton.style.cursor = 'pointer';
+    resumeButton.style.fontWeight = 'bold';
+    resumeButton.addEventListener('mouseover', () => {
+      resumeButton.style.backgroundColor = '#45a049';
+    });
+    resumeButton.addEventListener('mouseout', () => {
+      resumeButton.style.backgroundColor = '#4CAF50';
+    });
+    resumeButton.addEventListener('click', () => {
+      this.togglePauseMenu(false);
+    });
+    buttonContainer.appendChild(resumeButton);
+    
+    // Create main menu button
+    const mainMenuButton = document.createElement('button');
+    mainMenuButton.textContent = 'Back to Main Menu';
+    mainMenuButton.style.padding = '12px 20px';
+    mainMenuButton.style.fontSize = '18px';
+    mainMenuButton.style.border = 'none';
+    mainMenuButton.style.borderRadius = '4px';
+    mainMenuButton.style.backgroundColor = '#f44336';
+    mainMenuButton.style.color = 'white';
+    mainMenuButton.style.cursor = 'pointer';
+    mainMenuButton.style.fontWeight = 'bold';
+    mainMenuButton.addEventListener('mouseover', () => {
+      mainMenuButton.style.backgroundColor = '#d32f2f';
+    });
+    mainMenuButton.addEventListener('mouseout', () => {
+      mainMenuButton.style.backgroundColor = '#f44336';
+    });
+    mainMenuButton.addEventListener('click', () => {
+      if (this.onExitToMenu) {
+        this.togglePauseMenu(false);
+        this.onExitToMenu();
+      }
+    });
+    buttonContainer.appendChild(mainMenuButton);
+    
+    this.pauseMenuElement.appendChild(buttonContainer);
+    document.body.appendChild(this.pauseMenuElement);
+  }
+  
+  /**
+   * Toggle the visibility of the pause menu
+   */
+  public togglePauseMenu(show?: boolean): void {
+    if (show !== undefined) {
+      this.isPauseMenuVisible = show;
+    } else {
+      this.isPauseMenuVisible = !this.isPauseMenuVisible;
+    }
+    
+    if (this.isPauseMenuVisible) {
+      this.pauseMenuElement.style.display = 'flex';
+      // Hide the exit button when pause menu is visible
+      if (this.exitButtonElement) {
+        this.exitButtonElement.style.display = 'none';
+      }
+    } else {
+      this.pauseMenuElement.style.display = 'none';
+      // Show the exit button when pause menu is hidden
+      if (this.exitButtonElement) {
+        this.exitButtonElement.style.display = 'block';
+      }
+    }
+  }
+  
+  /**
+   * Set the callback function for when the exit button is clicked
+   */
+  public setExitToMenuCallback(callback: () => void): void {
+    this.onExitToMenu = callback;
+  }
+  
+  /**
+   * Get whether the pause menu is currently visible
+   */
+  public getIsPauseMenuVisible(): boolean {
+    return this.isPauseMenuVisible;
+  }
+
+  /**
+   * Display the server ID in the pause menu
+   */
+  public setServerIdInPauseMenu(serverId: string | null): void {
+    if (serverId) {
+      this.serverIdElement.textContent = `Server ID: ${serverId}`;
+      this.serverIdElement.style.display = 'block';
+    } else {
+      this.serverIdElement.style.display = 'none';
+    }
   }
 } 
