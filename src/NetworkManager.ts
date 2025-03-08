@@ -2,17 +2,25 @@ import Peer, { DataConnection } from 'peerjs';
 
 export interface NetworkManagerEvents {
   onConnected: (peerId: string) => void;
-  onDisconnected: () => void;
+  onDisconnected: (peerId?: string) => void;
   onError: (error: string) => void;
   onGameStateReceived: (gameState: any) => void;
-  onPlayerInputReceived: (input: any) => void;
+  onPlayerInputReceived: (input: any, peerId: string) => void;
+  onPlayerJoined: (peerId: string) => void;
+  onPlayerLeft: (peerId: string) => void;
+}
+
+export interface RemotePlayer {
+  peerId: string;
+  connection: DataConnection;
 }
 
 export class NetworkManager {
   private peer: Peer | null = null;
-  private connection: DataConnection | null = null;
+  private connections: Map<string, DataConnection> = new Map();
   private isHost: boolean = false;
   private events: NetworkManagerEvents;
+  private maxConnections: number = 7; // Maximum of 7 clients + 1 host = 8 players
   
   constructor(events: NetworkManagerEvents) {
     this.events = events;
@@ -33,10 +41,21 @@ export class NetworkManager {
         // When a client connects to the host
         this.peer?.on('connection', (conn) => {
           console.log('Client connected:', conn.peer);
-          this.connection = conn;
           
-          this.setupConnectionHandlers();
+          // Limit connections to maxConnections
+          if (this.connections.size >= this.maxConnections) {
+            console.log(`Max connections (${this.maxConnections}) reached, rejecting connection from ${conn.peer}`);
+            conn.close();
+            return;
+          }
+          
+          this.connections.set(conn.peer, conn);
+          this.setupConnectionHandlers(conn);
           this.events.onConnected(conn.peer);
+          this.events.onPlayerJoined(conn.peer);
+          
+          // Notify all other connected peers about the new player
+          this.broadcastNewPlayer(conn.peer);
         });
         
         resolve(id);
@@ -65,16 +84,17 @@ export class NetworkManager {
           return;
         }
         
-        this.connection = this.peer.connect(hostId);
+        const connection = this.peer.connect(hostId);
         
-        this.connection.on('open', () => {
+        connection.on('open', () => {
           console.log('Connected to host:', hostId);
-          this.setupConnectionHandlers();
+          this.connections.set(hostId, connection);
+          this.setupConnectionHandlers(connection);
           this.events.onConnected(hostId);
           resolve();
         });
         
-        this.connection.on('error', (err) => {
+        connection.on('error', (err) => {
           console.error('Connection error:', err);
           this.events.onError(`Connection error: ${err.message || err}`);
           reject(err);
@@ -89,52 +109,126 @@ export class NetworkManager {
     });
   }
   
-  private setupConnectionHandlers() {
-    if (!this.connection) return;
+  private broadcastNewPlayer(newPeerId: string) {
+    if (!this.isHost) return;
     
-    this.connection.on('data', (data: any) => {
-      console.log("Received data:", data.type, data);
+    // Notify all other connected peers about the new player
+    this.connections.forEach((conn, peerId) => {
+      if (peerId !== newPeerId && conn.open) {
+        conn.send({
+          type: 'playerJoined',
+          payload: { peerId: newPeerId }
+        });
+      }
+    });
+  }
+  
+  private setupConnectionHandlers(connection: DataConnection) {
+    connection.on('data', (data: any) => {
+      console.log("Received data from", connection.peer, ":", data.type);
       
       // Handle different types of messages
       if (data.type === 'gameState') {
         this.events.onGameStateReceived(data.payload);
       } else if (data.type === 'playerInput') {
-        this.events.onPlayerInputReceived(data.payload);
+        // Use the provided clientId if available, otherwise use the connection's peer ID
+        const clientId = data.payload.clientId || connection.peer;
+        this.events.onPlayerInputReceived(data.payload, clientId);
+      } else if (data.type === 'playerJoined') {
+        this.events.onPlayerJoined(data.payload.peerId);
+      } else if (data.type === 'playerLeft') {
+        this.events.onPlayerLeft(data.payload.peerId);
       }
     });
     
-    this.connection.on('close', () => {
-      console.log('Connection closed');
-      this.connection = null;
-      this.events.onDisconnected();
+    connection.on('close', () => {
+      console.log('Connection closed with peer:', connection.peer);
+      
+      // Remove from connections map
+      this.connections.delete(connection.peer);
+      
+      // Notify about disconnection
+      this.events.onDisconnected(connection.peer);
+      this.events.onPlayerLeft(connection.peer);
+      
+      // If host, notify all other peers about this player leaving
+      if (this.isHost) {
+        this.connections.forEach((conn) => {
+          if (conn.open) {
+            conn.send({
+              type: 'playerLeft',
+              payload: { peerId: connection.peer }
+            });
+          }
+        });
+      }
     });
   }
   
-  // Send game state (typically called by host)
+  // Send game state to all clients (host only)
   public sendGameState(gameState: any) {
-    if (this.connection && this.isHost) {
-      console.log("Sending game state", gameState.timestamp);
-      this.connection.send({
-        type: 'gameState',
-        payload: gameState
-      });
+    if (!this.isHost) return;
+    
+    this.connections.forEach((connection) => {
+      if (connection.open) {
+        try {
+          connection.send({
+            type: 'gameState',
+            payload: gameState
+          });
+        } catch (error) {
+          console.error("Error sending game state to", connection.peer, error);
+        }
+      }
+    });
+  }
+  
+  // Send game state to a specific client (host only)
+  public sendGameStateToPlayer(gameState: any, peerId: string) {
+    if (!this.isHost) return;
+    
+    const connection = this.connections.get(peerId);
+    if (connection && connection.open) {
+      try {
+        connection.send({
+          type: 'gameState',
+          payload: gameState
+        });
+      } catch (error) {
+        console.error("Error sending game state to specific player", peerId, error);
+      }
     }
   }
   
-  // Send player input (typically called by client)
+  // Send player input to the host (client only)
   public sendPlayerInput(input: any) {
-    if (this.connection && !this.isHost) {
-      console.log("Sending player input", input.timestamp);
-      this.connection.send({
-        type: 'playerInput',
-        payload: input
-      });
-    }
+    if (this.isHost) return;
+    
+    // Clients only send to the host
+    this.connections.forEach((connection) => {
+      if (connection.open) {
+        console.log("Sending player input", input.timestamp);
+        connection.send({
+          type: 'playerInput',
+          payload: input
+        });
+      }
+    });
   }
   
-  // Check if connected to peer
+  // Get all connected peer IDs
+  public getConnectedPeers(): string[] {
+    return Array.from(this.connections.keys());
+  }
+  
+  // Get my own peer ID
+  public getMyPeerId(): string | null {
+    return this.peer ? this.peer.id : null;
+  }
+  
+  // Check if connected to any peer
   public isConnected(): boolean {
-    return this.connection !== null && this.connection.open;
+    return this.connections.size > 0;
   }
   
   // Check if this instance is the host
@@ -142,17 +236,23 @@ export class NetworkManager {
     return this.isHost;
   }
   
+  // Get number of connected players
+  public getConnectionCount(): number {
+    return this.connections.size;
+  }
+  
   // Close connection and cleanup
   public disconnect() {
-    if (this.connection) {
-      this.connection.close();
-    }
+    this.connections.forEach((connection) => {
+      connection.close();
+    });
+    
+    this.connections.clear();
     
     if (this.peer) {
       this.peer.destroy();
     }
     
-    this.connection = null;
     this.peer = null;
   }
 } 

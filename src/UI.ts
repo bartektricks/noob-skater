@@ -15,6 +15,7 @@ export class UI {
   private connectionStatusDisplay: HTMLDivElement;
   private onExitToMenu: (() => void) | null = null; // Callback for exit button
   private isPauseMenuVisible: boolean = false; // Track pause menu visibility
+  private connectedPlayersElement: HTMLDivElement | null = null;
 
   constructor(skateboard: Skateboard) {
     this.skateboard = skateboard;
@@ -135,12 +136,7 @@ export class UI {
   }
 
   public update(): void {
-    // Calculate speed in km/h (converting from our arbitrary units)
-    const speedKmh = Math.abs(this.skateboard.speed * 100);
-    
-    // Add jump status indicator
-    const isInAir = !this.skateboard.isGrounded; // Assuming isGrounded is accessible
-    const airStatus = isInAir ? '<span style="color: yellow;"> (In Air!)</span>' : '';
+    // Update the player info
   
   }
 
@@ -180,6 +176,46 @@ export class UI {
     this.connectionStatusDisplay.style.display = 'block';
     
     console.log("Connection status updated:", status);
+  }
+
+  // Add method to show connected players
+  public updateConnectedPlayers(playerCount: number, playerIds: string[]): void {
+    if (!this.connectedPlayersElement) {
+      this.connectedPlayersElement = document.createElement('div');
+      this.connectedPlayersElement.className = 'connected-players';
+      this.connectedPlayersElement.style.position = 'absolute';
+      this.connectedPlayersElement.style.top = '80px';
+      this.connectedPlayersElement.style.right = '20px';
+      this.connectedPlayersElement.style.backgroundColor = 'rgba(0, 0, 0, 0.6)';
+      this.connectedPlayersElement.style.color = 'white';
+      this.connectedPlayersElement.style.padding = '10px';
+      this.connectedPlayersElement.style.borderRadius = '5px';
+      this.connectedPlayersElement.style.fontFamily = 'sans-serif';
+      this.connectedPlayersElement.style.fontSize = '14px';
+      this.connectedPlayersElement.style.zIndex = '1000';
+      document.body.appendChild(this.connectedPlayersElement);
+    }
+    
+    if (playerCount === 0) {
+      this.connectedPlayersElement.style.display = 'none';
+      return;
+    }
+    
+    this.connectedPlayersElement.style.display = 'block';
+    
+    // Format the player list
+    let html = `<strong>Connected Players (${playerCount}):</strong><br>`;
+    if (playerIds.length > 0) {
+      playerIds.forEach((id, index) => {
+        // Display a shortened version of the peer ID
+        const shortId = id.length > 10 ? id.substring(0, 10) + '...' : id;
+        html += `Player ${index + 1}: ${shortId}<br>`;
+      });
+    } else {
+      html += 'No players connected';
+    }
+    
+    this.connectedPlayersElement.innerHTML = html;
   }
 
   /**

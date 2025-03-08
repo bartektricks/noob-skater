@@ -1,5 +1,6 @@
 export interface GameStartOptions {
   nickname: string;
+  isMultiplayer: boolean;
   peerRole: 'host' | 'client';
   peerCode?: string; // Connection code when joining as client
 }
@@ -208,6 +209,7 @@ export class GameMenu {
     
     const options: GameStartOptions = {
       nickname: this.nicknameInput.value.trim(),
+      isMultiplayer: true,
       peerRole: this.hostRoleRadio.checked ? 'host' : 'client',
       peerCode: this.clientRoleRadio.checked ? this.peerCodeInput.value.trim() : undefined
     };
@@ -230,6 +232,7 @@ export class GameMenu {
     // Pass empty options just to trigger the game to resume
     const options: GameStartOptions = {
       nickname: this.nicknameInput.value || 'Player',
+      isMultiplayer: true,
       peerRole: 'host' // Default role doesn't matter for resuming
     };
     
