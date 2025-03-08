@@ -880,4 +880,32 @@ export class Skateboard {
     // Cubic ease-in-out function: smoother than linear interpolation
     return t < 0.5 ? 4 * t * t * t : 1 - Math.pow(-2 * t + 2, 3) / 2;
   }
+
+  // Add this method to the Skateboard class
+  public applyForce(direction: 'forward' | 'backward' | 'left' | 'right'): void {
+    const force = 0.1; // Adjust force as needed
+    
+    switch (direction) {
+      case 'forward':
+        // Apply forward force in the direction the skateboard is facing
+        this.mesh.position.x += Math.sin(this.rotation) * force;
+        this.mesh.position.z += Math.cos(this.rotation) * force;
+        break;
+      case 'backward':
+        // Apply backward force
+        this.mesh.position.x -= Math.sin(this.rotation) * force;
+        this.mesh.position.z -= Math.cos(this.rotation) * force;
+        break;
+      case 'left':
+        // Turn left
+        this.rotation += 0.1;
+        this.mesh.rotation.y = this.rotation;
+        break;
+      case 'right':
+        // Turn right
+        this.rotation -= 0.1;
+        this.mesh.rotation.y = this.rotation;
+        break;
+    }
+  }
 } 

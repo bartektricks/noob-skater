@@ -1,17 +1,56 @@
+import { Skateboard } from './Skateboard';
+
 export class UI {
   private speedElement!: HTMLDivElement;
   private controlsElement!: HTMLDivElement;
   private trickTextElement!: HTMLDivElement;
   private playerInfoElement!: HTMLDivElement;
-  private skateboard: any; // Reference to the skateboard instance
+  private skateboard: Skateboard;
   private playerNickname: string = 'Player';
+  private speedDisplay: HTMLDivElement;
+  private trickDisplay: HTMLDivElement;
+  private notificationDisplay: HTMLDivElement;
+  private notificationTimeout: number | null = null;
+  private connectionStatusDisplay: HTMLDivElement;
 
-  constructor(skateboard: any) {
+  constructor(skateboard: Skateboard) {
     this.skateboard = skateboard;
     this.createSpeedometer();
     this.createControlsInfo();
     this.createTrickText();
     this.createPlayerInfo();
+    
+    // Create speed display
+    this.speedDisplay = document.createElement('div');
+    this.speedDisplay.className = 'speed-display';
+    document.body.appendChild(this.speedDisplay);
+    
+    // Create trick display
+    this.trickDisplay = document.createElement('div');
+    this.trickDisplay.className = 'trick-display';
+    document.body.appendChild(this.trickDisplay);
+    
+    // Create notification display
+    this.notificationDisplay = document.createElement('div');
+    this.notificationDisplay.className = 'notification-display';
+    this.notificationDisplay.style.position = 'absolute';
+    this.notificationDisplay.style.top = '20px';
+    this.notificationDisplay.style.left = '50%';
+    this.notificationDisplay.style.transform = 'translateX(-50%)';
+    this.notificationDisplay.style.backgroundColor = 'rgba(0, 0, 0, 0.7)';
+    this.notificationDisplay.style.color = 'white';
+    this.notificationDisplay.style.padding = '10px 20px';
+    this.notificationDisplay.style.borderRadius = '5px';
+    this.notificationDisplay.style.zIndex = '1000';
+    this.notificationDisplay.style.display = 'none';
+    document.body.appendChild(this.notificationDisplay);
+    
+    // Create connection status display
+    this.connectionStatusDisplay = document.createElement('div');
+    this.connectionStatusDisplay.className = 'connection-status disconnected';
+    this.connectionStatusDisplay.textContent = 'Disconnected';
+    this.connectionStatusDisplay.style.display = 'none'; // Hidden by default
+    document.body.appendChild(this.connectionStatusDisplay);
   }
 
   private createSpeedometer(): void {
@@ -119,5 +158,43 @@ export class UI {
     const airStatus = isInAir ? '<span style="color: yellow;"> (In Air!)</span>' : '';
     
     this.speedElement.innerHTML = `Speed: ${speedKmh.toFixed(1)} km/h${airStatus}`;
+  }
+
+  /**
+   * Shows a notification message on screen
+   * @param message The message to display
+   * @param duration Duration in milliseconds to show the message (default: 3000ms)
+   */
+  public showNotification(message: string, duration: number = 3000): void {
+    this.notificationDisplay.textContent = message;
+    this.notificationDisplay.style.display = 'block';
+    
+    // Clear any existing timeout
+    if (this.notificationTimeout !== null) {
+      window.clearTimeout(this.notificationTimeout);
+    }
+    
+    // Set timeout to hide notification
+    this.notificationTimeout = window.setTimeout(() => {
+      this.notificationDisplay.style.display = 'none';
+      this.notificationTimeout = null;
+    }, duration);
+  }
+
+  // Add method to show connection status
+  public showConnectionStatus(status: 'connected' | 'disconnected' | 'connecting'): void {
+    // Remove all status classes
+    this.connectionStatusDisplay.classList.remove('connected', 'disconnected', 'connecting');
+    
+    // Add the current status class
+    this.connectionStatusDisplay.classList.add(status);
+    
+    // Update text content
+    this.connectionStatusDisplay.textContent = status.charAt(0).toUpperCase() + status.slice(1);
+    
+    // Show the status display
+    this.connectionStatusDisplay.style.display = 'block';
+    
+    console.log("Connection status updated:", status);
   }
 } 

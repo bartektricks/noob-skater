@@ -14,7 +14,9 @@
     "vite": "^6.2.0"
   },
   "dependencies": {
+    "@types/peerjs": "^1.1.0",
     "@types/three": "^0.174.0",
+    "peerjs": "^1.5.4",
     "three": "^0.174.0"
   }
 }

@@ -16,88 +16,271 @@ canvas {
 
 /* Game menu styles */
 #game-menu {
+  display: flex;
+  justify-content: center;
+  align-items: center;
   position: fixed;
   top: 0;
   left: 0;
   width: 100%;
   height: 100%;
-  background-color: rgba(0, 0, 0, 0.7);
-  display: flex;
-  justify-content: center;
-  align-items: center;
-  z-index: 100;
-  opacity: 1;
-  transition: opacity 0.5s ease, visibility 0.5s ease;
-  visibility: visible;
+  background-color: rgba(0, 0, 0, 0.8);
+  z-index: 1000;
+  font-family: 'Arial', sans-serif;
 }
 
 .menu-container {
-  background-color: #222;
-  color: white;
-  border-radius: 10px;
-  padding: 40px;
+  background-color: #2a2a2a;
+  border-radius: 8px;
+  box-shadow: 0 0 20px rgba(0, 0, 0, 0.5);
+  padding: 25px;
+  width: 400px;
+  max-width: 90%;
   text-align: center;
-  max-width: 500px;
-  box-shadow: 0 0 20px rgba(255, 255, 255, 0.2);
+  color: #fff;
 }
 
 .menu-container h1 {
-  font-size: 3rem;
-  margin-bottom: 20px;
-  color: #F7CA18;
+  margin-top: 0;
+  color: #ff6b6b;
+  font-size: 28px;
+  text-transform: uppercase;
+  letter-spacing: 1px;
 }
 
 .menu-container p {
-  margin-bottom: 25px;
-  line-height: 1.5;
+  margin-bottom: 20px;
+  color: #ccc;
+  font-size: 14px;
 }
 
 .form-group {
-  margin-bottom: 15px;
+  margin-bottom: 20px;
   text-align: left;
 }
 
 .form-group label {
   display: block;
-  margin-bottom: 5px;
+  margin-bottom: 8px;
   font-weight: bold;
+  color: #ddd;
 }
 
-.form-group input, 
-.form-group select {
+.form-group input, .form-group select {
   width: 100%;
   padding: 10px;
-  border-radius: 5px;
   border: none;
-  background-color: #333;
+  border-radius: 4px;
+  background-color: #3a3a3a;
   color: white;
-  font-size: 1rem;
+  font-size: 16px;
+  box-sizing: border-box;
 }
 
-.form-group select {
-  cursor: pointer;
+.form-group input:focus, .form-group select:focus {
+  outline: none;
+  box-shadow: 0 0 0 2px #ff6b6b;
 }
 
 .menu-button {
-  background-color: #F7CA18;
-  color: #222;
+  background-color: #ff6b6b;
+  color: white;
   border: none;
-  padding: 12px 30px;
-  font-size: 1.2rem;
-  border-radius: 5px;
-  cursor: pointer;
+  border-radius: 4px;
+  padding: 12px 24px;
+  font-size: 16px;
   font-weight: bold;
-  transition: all 0.2s ease;
-  margin-top: 10px;
+  cursor: pointer;
+  transition: background-color 0.2s;
+  margin-top: 15px;
+  text-transform: uppercase;
+  letter-spacing: 1px;
 }
 
 .menu-button:hover {
-  background-color: white;
-  transform: scale(1.05);
+  background-color: #ff4757;
 }
 
-.hidden {
-  opacity: 0 !important;
-  visibility: hidden !important;
+/* P2P Connection Section */
+.connection-section {
+  background-color: #333;
+  border-radius: 6px;
+  padding: 15px;
+  margin-bottom: 20px;
+}
+
+.connection-section h3 {
+  margin-top: 0;
+  margin-bottom: 15px;
+  color: #ff6b6b;
+  text-align: left;
+}
+
+.option-row {
+  display: flex;
+  align-items: center;
+  margin-bottom: 10px;
+  padding: 8px;
+  border-radius: 4px;
+  transition: background-color 0.2s;
+  cursor: pointer;
+  text-align: left;
+}
+
+.option-row:hover {
+  background-color: #444;
+}
+
+.option-row input[type="radio"] {
+  margin-right: 10px;
+  cursor: pointer;
+}
+
+.option-row label {
+  cursor: pointer;
+  flex: 1;
+}
+
+/* Host waiting screen styles */
+.connection-message {
+  color: #ffffff;
+  padding: 10px;
+  border-radius: 6px;
+  background-color: rgba(255, 255, 255, 0.1);
+  text-align: center;
+}
+
+.cancel-button {
+  background-color: #666 !important;
+}
+
+.cancel-button:hover {
+  background-color: #888 !important;
+}
+
+/* Improved connection code display */
+.code-box {
+  background-color: #1a1a1a;
+  border: 2px dashed #ff6b6b;
+  padding: 16px;
+  border-radius: 6px;
+  font-family: monospace;
+  font-size: 20px;
+  margin: 15px 0;
+  word-break: break-all;
+  color: #ff6b6b;
+  text-align: center;
+  letter-spacing: 1px;
+  font-weight: bold;
+  position: relative;
+  animation: pulse 2s infinite;
+}
+
+@keyframes pulse {
+  0% {
+    box-shadow: 0 0 0 0 rgba(255, 107, 107, 0.4);
+  }
+  70% {
+    box-shadow: 0 0 0 10px rgba(255, 107, 107, 0);
+  }
+  100% {
+    box-shadow: 0 0 0 0 rgba(255, 107, 107, 0);
+  }
+}
+
+#peer-code-display {
+  background-color: #333;
+  padding: 20px;
+  border-radius: 8px;
+  margin-top: 20px;
+  text-align: center;
+  border: 1px solid #555;
+}
+
+.info-text {
+  color: #aaa;
+  font-size: 12px;
+  margin-top: 8px;
+  font-style: italic;
+}
+
+/* Connection status indicator */
+.connection-status {
+  position: absolute;
+  top: 10px;
+  right: 10px;
+  padding: 6px 12px;
+  border-radius: 20px;
+  font-size: 12px;
+  font-weight: bold;
+  color: white;
+  text-transform: uppercase;
+  letter-spacing: 1px;
+  box-shadow: 0 2px 5px rgba(0, 0, 0, 0.2);
+}
+
+.connection-status.connected {
+  background-color: #4CAF50;
+}
+
+.connection-status.disconnected {
+  background-color: #F44336;
+}
+
+.connection-status.connecting {
+  background-color: #FFC107;
+}
+
+/* Pause menu connection info styles */
+.connection-info-container {
+  background-color: #222;
+  border-radius: 8px;
+  padding: 20px;
+  margin-top: 20px;
+  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.3);
+  border: 1px solid #444;
+}
+
+.connection-info-container h3 {
+  color: #ff6b6b;
+  margin-top: 0;
+  margin-bottom: 15px;
+  text-align: center;
+  font-size: 18px;
+  text-transform: uppercase;
+  letter-spacing: 1px;
+}
+
+/* Styles for the resume button in pause menu */
+.resume-button {
+  background-color: #66bb6a;
+  color: white;
+  margin-bottom: 15px;
+}
+
+.resume-button:hover {
+  background-color: #4caf50;
+}
+
+/* When paused, add a subtle overlay */
+.paused-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background-color: rgba(0, 0, 0, 0.5);
   pointer-events: none;
+  z-index: 50;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+}
+
+.paused-overlay h2 {
+  color: white;
+  font-size: 32px;
+  text-transform: uppercase;
+  letter-spacing: 2px;
+  text-shadow: 0 0 10px rgba(255, 107, 107, 0.8);
 }

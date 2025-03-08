@@ -383,4 +383,8 @@ export class Camera {
     this.cameraLerpFactor = Math.max(0.005, Math.min(0.2, value));
     this.updateDebugUI();
   }
+
+  public getCamera(): THREE.Camera {
+    return this.camera;
+  }
 } 
