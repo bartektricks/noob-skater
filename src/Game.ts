@@ -2,7 +2,11 @@ import * as THREE from "three";
 import { Camera } from "./Camera";
 import { GameMenu } from "./GameMenu";
 import type { GameStartOptions } from "./GameMenu";
-import { NetworkManager, type NetworkManagerEvents } from "./NetworkManager";
+import {
+	NetworkManager,
+	type NetworkManagerEvents,
+	type SkateboardState,
+} from "./NetworkManager";
 import { Rail } from "./Rail";
 import { Skateboard } from "./Skateboard";
 import { UI } from "./UI";
@@ -494,7 +498,7 @@ export class Game {
 	// Update method for remote player data received from network
 	private updateOrCreateRemotePlayer(
 		peerId: string,
-		skateboardState: any,
+		skateboardState: SkateboardState,
 	): void {
 		// Skip if this is our own peer ID - don't render ourselves as a remote player
 		if (this.peer && this.peer.id === peerId) {
@@ -1196,7 +1200,24 @@ export class Game {
 			// Send comprehensive game state to all clients
 			this.networkManager.sendGameState({
 				hostPeerId,
-				skateboardState,
+				skateboardState: {
+					position: {
+						x: position.x,
+						y: position.y,
+						z: position.z,
+					},
+					rotation: {
+						x: rotation.x,
+						y: rotation.y,
+						z: rotation.z,
+					},
+					velocity: {
+						x: velocity.x,
+						y: velocity.y,
+						z: velocity.z,
+					},
+					timestamp: now,
+				},
 				otherPlayers,
 				timestamp: now,
 			});

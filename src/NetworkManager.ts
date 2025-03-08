@@ -1,11 +1,59 @@
 import Peer, { type DataConnection } from "peerjs";
 
+export interface SkateboardState {
+	position: { x: number; y: number; z: number };
+	rotation: { x: number; y: number; z: number };
+	velocity?: { x: number; y: number; z: number };
+	timestamp?: number;
+	movementState?: {
+		isMoving: boolean;
+		verticalMovement: boolean;
+		isJumping: boolean;
+		isLanding: boolean;
+	};
+}
+
+export interface GameState {
+	hostPeerId: string;
+	skateboardState: SkateboardState;
+	otherPlayers: Array<{
+		peerId: string;
+		skateboardState: SkateboardState;
+	}>;
+	timestamp: number;
+}
+
+export interface PlayerInput {
+	skateboardState: SkateboardState;
+	clientId?: string;
+	timestamp: number;
+}
+
+export interface PlayerJoinedMessage {
+	peerId: string;
+}
+
+export interface PlayerLeftMessage {
+	peerId: string;
+}
+
+export type NetworkMessagePayload =
+	| GameState
+	| PlayerInput
+	| PlayerJoinedMessage
+	| PlayerLeftMessage;
+
+export interface NetworkMessage {
+	type: string;
+	payload: NetworkMessagePayload;
+}
+
 export interface NetworkManagerEvents {
 	onConnected: (peerId: string) => void;
 	onDisconnected: (peerId?: string) => void;
 	onError: (error: string) => void;
-	onGameStateReceived: (gameState: any) => void;
-	onPlayerInputReceived: (input: any, peerId: string) => void;
+	onGameStateReceived: (gameState: GameState) => void;
+	onPlayerInputReceived: (input: PlayerInput, peerId: string) => void;
 	onPlayerJoined: (peerId: string) => void;
 	onPlayerLeft: (peerId: string) => void;
 }
@@ -126,20 +174,24 @@ export class NetworkManager {
 	}
 
 	private setupConnectionHandlers(connection: DataConnection) {
-		connection.on("data", (data: any) => {
-			console.log("Received data from", connection.peer, ":", data.type);
+		connection.on("data", (data: unknown) => {
+			const message = data as NetworkMessage;
+			console.log("Received data from", connection.peer, ":", message.type);
 
 			// Handle different types of messages
-			if (data.type === "gameState") {
-				this.events.onGameStateReceived(data.payload);
-			} else if (data.type === "playerInput") {
+			if (message.type === "gameState") {
+				this.events.onGameStateReceived(message.payload as GameState);
+			} else if (message.type === "playerInput") {
 				// Use the provided clientId if available, otherwise use the connection's peer ID
-				const clientId = data.payload.clientId || connection.peer;
-				this.events.onPlayerInputReceived(data.payload, clientId);
-			} else if (data.type === "playerJoined") {
-				this.events.onPlayerJoined(data.payload.peerId);
-			} else if (data.type === "playerLeft") {
-				this.events.onPlayerLeft(data.payload.peerId);
+				const payload = message.payload as PlayerInput;
+				const clientId = payload.clientId || connection.peer;
+				this.events.onPlayerInputReceived(payload, clientId);
+			} else if (message.type === "playerJoined") {
+				this.events.onPlayerJoined(
+					(message.payload as PlayerJoinedMessage).peerId,
+				);
+			} else if (message.type === "playerLeft") {
+				this.events.onPlayerLeft((message.payload as PlayerLeftMessage).peerId);
 			}
 		});
 
@@ -168,7 +220,7 @@ export class NetworkManager {
 	}
 
 	// Send game state to all clients (host only)
-	public sendGameState(gameState: any) {
+	public sendGameState(gameState: GameState) {
 		if (!this.isHost) return;
 
 		for (const connection of this.connections.values()) {
@@ -186,7 +238,7 @@ export class NetworkManager {
 	}
 
 	// Send game state to a specific client (host only)
-	public sendGameStateToPlayer(gameState: any, peerId: string) {
+	public sendGameStateToPlayer(gameState: GameState, peerId: string) {
 		if (!this.isHost) return;
 
 		const connection = this.connections.get(peerId);
@@ -207,7 +259,7 @@ export class NetworkManager {
 	}
 
 	// Send player input to the host (client only)
-	public sendPlayerInput(input: any) {
+	public sendPlayerInput(input: PlayerInput) {
 		if (this.isHost) return;
 
 		// Clients only send to the host
