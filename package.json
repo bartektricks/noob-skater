@@ -1,22 +1,23 @@
 {
-  "name": "noob-skater",
-  "private": true,
-  "version": "0.0.0",
-  "type": "module",
-  "scripts": {
-    "dev": "vite",
-    "build": "tsc && vite build",
-    "build:dangerous": "vite build",
-    "preview": "vite preview"
-  },
-  "devDependencies": {
-    "typescript": "~5.7.2",
-    "vite": "^6.2.0"
-  },
-  "dependencies": {
-    "@types/peerjs": "^1.1.0",
-    "@types/three": "^0.174.0",
-    "peerjs": "^1.5.4",
-    "three": "^0.174.0"
-  }
+	"name": "noob-skater",
+	"private": true,
+	"version": "0.0.0",
+	"type": "module",
+	"scripts": {
+		"dev": "vite",
+		"build": "tsc && vite build",
+		"build:dangerous": "vite build",
+		"preview": "vite preview"
+	},
+	"devDependencies": {
+		"@biomejs/biome": "1.9.4",
+		"typescript": "~5.7.2",
+		"vite": "^6.2.0"
+	},
+	"dependencies": {
+		"@types/peerjs": "^1.1.0",
+		"@types/three": "^0.174.0",
+		"peerjs": "^1.5.4",
+		"three": "^0.174.0"
+	}
 }

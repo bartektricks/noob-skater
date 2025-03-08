@@ -1,6 +1,6 @@
-import { Game } from './Game';
-import './styles.css';
+import { Game } from "./Game";
+import "./styles.css";
 
 // Create and start the game
 const game = new Game();
-game.animate(); 
+game.animate();
