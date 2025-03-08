@@ -1,0 +1,8 @@
+---
+description: 
+globs: 
+alwaysApply: false
+---
+- use BUN and VITE
+- remember to stay typesafe
+- DRY

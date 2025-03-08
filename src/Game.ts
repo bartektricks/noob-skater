@@ -706,6 +706,45 @@ export class Game {
 			remotePlayer.lastPosition.copy(remotePlayer.skateboard.mesh.position);
 			remotePlayer.lastRotation.copy(remotePlayer.skateboard.mesh.rotation);
 			remotePlayer.lastUpdateTime = now;
+
+			// Update trick state if provided
+			if (skateboardState.trickState) {
+				const localTrickState = remotePlayer.skateboard.getTrickState();
+				
+				// Handle flip animation
+				if (skateboardState.trickState.isDoingFlip) {
+					if (!localTrickState.isDoingFlip) {
+						// Remote player just started a flip
+						console.log("Remote player started flip");
+						
+						// Create a new trick state with local timing for smooth animation
+						const newTrickState = {
+							...localTrickState,
+							isDoingFlip: true,
+							flipStartTime: Date.now(),
+							flipProgress: 0
+						};
+						remotePlayer.skateboard.setTrickState(newTrickState);
+					} else if (skateboardState.trickState.flipProgress !== undefined) {
+						// Update flip progress if provided - helps with synchronization
+						// But don't update flipStartTime to avoid animation jumps
+						const newTrickState = {
+							...localTrickState,
+							flipProgress: skateboardState.trickState.flipProgress
+						};
+						remotePlayer.skateboard.setTrickState(newTrickState);
+					}
+				} else if (localTrickState.isDoingFlip) {
+					// Remote player ended the flip
+					const newTrickState = {
+						...localTrickState,
+						isDoingFlip: false,
+						flipProgress: 1.0
+					};
+					remotePlayer.skateboard.setTrickState(newTrickState);
+					remotePlayer.skateboard.mesh.rotation.z = 0; // Reset flip rotation
+				}
+			}
 		}
 	}
 
@@ -732,7 +771,10 @@ export class Game {
 
 		for (const remotePlayer of this.remotePlayers.values()) {
 			const skateboard = remotePlayer.skateboard;
-
+			
+			// Update the flip animation directly if needed
+			this.updateRemoteFlipAnimation(skateboard);
+			
 			// Get current position and rotation
 			const currentPosition = skateboard.mesh.position;
 			const currentRotation = skateboard.mesh.rotation;
@@ -1174,6 +1216,12 @@ export class Game {
 			},
 			velocity,
 			timestamp: now,
+			// Add trick state information
+			trickState: {
+				isDoingFlip: this.skateboard.getTrickState().isDoingFlip,
+				flipStartTime: this.skateboard.getTrickState().flipStartTime,
+				flipProgress: this.skateboard.getTrickState().flipProgress
+			}
 		};
 
 		if (this.isHost) {
@@ -1186,6 +1234,7 @@ export class Game {
 				.map(([peerId, player]) => {
 					const position = player.skateboard.mesh.position;
 					const rotation = player.skateboard.mesh.rotation;
+					const trickState = player.skateboard.getTrickState();
 
 					return {
 						peerId,
@@ -1193,6 +1242,11 @@ export class Game {
 							position: { x: position.x, y: position.y, z: position.z },
 							rotation: { x: rotation.x, y: rotation.y, z: rotation.z },
 							timestamp: now,
+							trickState: {
+								isDoingFlip: trickState.isDoingFlip,
+								flipStartTime: trickState.flipStartTime,
+								flipProgress: trickState.flipProgress
+							}
 						},
 					};
 				});
@@ -1217,6 +1271,11 @@ export class Game {
 						z: velocity.z,
 					},
 					timestamp: now,
+					trickState: {
+						isDoingFlip: this.skateboard.getTrickState().isDoingFlip,
+						flipStartTime: this.skateboard.getTrickState().flipStartTime,
+						flipProgress: this.skateboard.getTrickState().flipProgress
+					}
 				},
 				otherPlayers,
 				timestamp: now,
@@ -1248,5 +1307,52 @@ export class Game {
 		}
 
 		return current + delta * t;
+	}
+
+	// Add a specialized method to handle remote skateboard flip animations
+	private updateRemoteFlipAnimation(skateboard: Skateboard): void {
+		const trickState = skateboard.getTrickState();
+		
+		if (trickState.isDoingFlip) {
+			// There are two ways to update the flip:
+			// 1. If flipProgress is provided directly, use it (from network)
+			// 2. Otherwise, calculate based on time (for smooth local animation)
+			
+			let flipProgress = trickState.flipProgress || 0;
+			
+			// If we have a start time, calculate progress based on time for smooth animation
+			if (trickState.flipStartTime) {
+				const currentTime = Date.now();
+				const elapsedTime = currentTime - trickState.flipStartTime;
+				const flipDuration = 500; // Should match the duration in Skateboard.ts
+				
+				// Calculate time-based progress (0 to 1)
+				flipProgress = Math.min(elapsedTime / flipDuration, 1);
+				
+				// Update the progress in the trick state
+				if (flipProgress !== trickState.flipProgress) {
+					const newTrickState = {
+						...trickState,
+						flipProgress: flipProgress
+					};
+					skateboard.setTrickState(newTrickState);
+				}
+			}
+			
+			// Apply 360-degree rotation around z-axis directly to the mesh
+			skateboard.mesh.rotation.z = Math.PI * 2 * flipProgress;
+			
+			// Check if flip is complete
+			if (flipProgress >= 1) {
+				// Reset the trick state when done
+				const newTrickState = {
+					...trickState,
+					isDoingFlip: false,
+					flipProgress: 0
+				};
+				skateboard.setTrickState(newTrickState);
+				skateboard.mesh.rotation.z = 0; // Reset z rotation
+			}
+		}
 	}
 }

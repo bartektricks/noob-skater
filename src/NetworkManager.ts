@@ -11,6 +11,11 @@ export interface SkateboardState {
 		isJumping: boolean;
 		isLanding: boolean;
 	};
+	trickState?: {
+		isDoingFlip: boolean;
+		flipStartTime?: number;
+		flipProgress?: number;
+	};
 }
 
 export interface GameState {
