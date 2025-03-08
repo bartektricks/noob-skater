@@ -908,4 +908,102 @@ export class Skateboard {
         break;
     }
   }
+
+  // Add a public getter for wheels
+  public getWheels(): THREE.Mesh[] {
+    return this.wheels;
+  }
+
+  // Add method to get current trick state for network transmission
+  public getTrickState(): any {
+    return {
+      isDoingFlip: this.isDoingFlip,
+      flipStartTime: this.isDoingFlip ? this.flipStartTime : 0,
+      flipProgress: this.isDoingFlip ? this.flipProgress : 0,
+      
+      isGrinding: this.isGrinding,
+      grindProgress: this.isGrinding ? this.grindProgress : 0,
+      
+      isReorienting: this.isReorienting,
+      reorientStartTime: this.isReorienting ? this.reorientStartTime : 0,
+      movementFlipped: this.movementFlipped
+    };
+  }
+
+  // Add method to set trick state from network data
+  public setTrickState(state: any): void {
+    // Handle flip state with direct control to ensure visual sync
+    const wasFlipping = this.isDoingFlip;
+    this.isDoingFlip = state.isDoingFlip || false;
+    
+    if (this.isDoingFlip) {
+      if (!wasFlipping) {
+        // Starting a new flip
+        this.flipStartTime = Date.now();
+        this.flipProgress = 0;
+        
+        // Trigger display of trick text
+        if (this.ui) {
+          if (this.movementFlipped) {
+            this.ui.showTrickText("Fakie 360 Flip");
+          } else {
+            this.ui.showTrickText("360 Flip");
+          }
+        }
+      } else if (state.flipProgress !== undefined) {
+        // Continuing a flip - update progress directly for better visual sync
+        this.flipProgress = state.flipProgress;
+        this.mesh.rotation.z = Math.PI * 2 * this.flipProgress;
+      }
+    } else if (wasFlipping) {
+      // Just finished a flip
+      this.flipProgress = 1.0;
+      this.isDoingFlip = false;
+      this.mesh.rotation.z = 0; // Reset z rotation
+    }
+    
+    // Handle grinding state with proper rail exit
+    const wasGrinding = this.isGrinding;
+    this.isGrinding = state.isGrinding || false;
+    
+    if (this.isGrinding) {
+      // Starting or continuing to grind
+      if (!wasGrinding) {
+        // Find nearest rail if we need one
+        if (!this.currentRail && this.rails.length > 0) {
+          let nearestRail = this.rails[0];
+          let nearestDistance = Infinity;
+          
+          for (const rail of this.rails) {
+            const distance = this.mesh.position.distanceTo(rail.mesh.position);
+            if (distance < nearestDistance) {
+              nearestDistance = distance;
+              nearestRail = rail;
+            }
+          }
+          
+          this.currentRail = nearestRail;
+        }
+      }
+      
+      // Update grind progress
+      if (typeof state.grindProgress === 'number') {
+        this.grindProgress = state.grindProgress;
+      }
+    } else if (wasGrinding) {
+      // Just stopped grinding - simulate rail exit
+      this.exitRail(true); // Exit with a jump
+    }
+    
+    // Handle reorientation
+    this.isReorienting = state.isReorienting || false;
+    if (this.isReorienting && !this.reorientStartTime) {
+      this.reorientStartTime = Date.now();
+    } else if (!this.isReorienting) {
+      this.reorientStartTime = 0;
+    }
+    
+    // Sync movement direction
+    this.movementFlipped = state.movementFlipped || false;
+  }
 } 

@@ -42,11 +42,40 @@ export class Game {
   private isHost: boolean = false;
   private remoteSkateboard: Skateboard | null = null;
   private lastSentTime: number = 0;
-  private networkUpdateRate: number = 100; // milliseconds between updates
+  private networkUpdateRate: number = 30; // 33 updates per second
   private playerInput: { [key: string]: boolean } = {};
 
   // Add a property to store connection code
   private hostConnectionCode: string = '';
+
+  // Add these properties to the Game class for smooth remote animations
+  private remoteTargetPosition: THREE.Vector3 = new THREE.Vector3();
+  private remoteTargetRotation: THREE.Euler = new THREE.Euler();
+  private remotePositionLerpFactor: number = 0.1; // Smoother position transitions
+  private remoteRotationLerpFactor: number = 0.35; // Much faster rotation response
+
+  // Enhance remoteTargetPosition and remoteTargetRotation with velocity and acceleration
+  private remoteVelocity: THREE.Vector3 = new THREE.Vector3();
+  private remoteAngularVelocity: THREE.Vector3 = new THREE.Vector3();
+  private lastRemotePosition: THREE.Vector3 = new THREE.Vector3();
+  private lastRemoteRotation: THREE.Euler = new THREE.Euler();
+  private remotePositionBuffer: {position: THREE.Vector3, timestamp: number}[] = [];
+  private positionBufferSize: number = 3; // How many position updates to buffer
+
+  // Add easing functions for smoother animations
+  private easeOutCubic(x: number): number {
+    return 1 - Math.pow(1 - x, 3);
+  }
+
+  private easeInOutQuad(x: number): number {
+    return x < 0.5 ? 2 * x * x : 1 - Math.pow(-2 * x + 2, 2) / 2;
+  }
+
+  // Add the missing lastSendPosition property
+  private lastSendPosition: {x: number, y: number, z: number} | null = null;
+
+  // Add a direct sync threshold to skip interpolation for very large rotational changes
+  private rotationDirectSyncThreshold: number = Math.PI / 2; // 90 degrees
 
   constructor() {
     // Create scene
@@ -200,6 +229,10 @@ export class Game {
           console.log(`Creating remote skateboard as ${this.isHost ? 'HOST' : 'CLIENT'}`);
           this.remoteSkateboard = new Skateboard();
           
+          // Connect the skateboard to the rails and UI for trick animations
+          this.remoteSkateboard.setRails(this.rails);
+          this.remoteSkateboard.setUI(this.ui);
+          
           // Make remote skateboard visually distinct but preserve its structure
           this.remoteSkateboard.mesh.traverse(child => {
             if (child instanceof THREE.Mesh) {
@@ -234,15 +267,27 @@ export class Game {
             }
           });
           
+          // Add subtle animation effects
+          const trailMaterial = new THREE.MeshBasicMaterial({ 
+            color: 0xff3333, 
+            transparent: true, 
+            opacity: 0.4,
+            side: THREE.DoubleSide
+          });
+          
+          // Visual trail effect
+          const trailGeometry = new THREE.PlaneGeometry(0.5, 2);
+          const trail = new THREE.Mesh(trailGeometry, trailMaterial);
+          trail.position.set(0, 0.1, -1);
+          trail.rotation.x = Math.PI / 2;
+          this.remoteSkateboard.mesh.add(trail);
+          
           // Add player label above the remote skateboard
           const labelGeometry = new THREE.BoxGeometry(1, 0.5, 0.1);
           const labelMaterial = new THREE.MeshBasicMaterial({ color: 0xff0000 });
           const label = new THREE.Mesh(labelGeometry, labelMaterial);
           label.position.set(0, 2, 0); 
           this.remoteSkateboard.mesh.add(label);
-          
-          // Create a text label for the player
-          const playerType = this.isHost ? "CLIENT" : "HOST";
           
           // Add a small light to make the remote player more visible
           const pointLight = new THREE.PointLight(0xff0000, 0.5, 5);
@@ -251,6 +296,13 @@ export class Game {
           
           // Initial position offset - same logic for both
           this.remoteSkateboard.mesh.position.set(3, 1, 3);
+          
+          // Initialize animation properties
+          this.remoteTargetPosition.copy(this.remoteSkateboard.mesh.position);
+          this.lastRemotePosition.copy(this.remoteSkateboard.mesh.position);
+          this.remoteTargetRotation.copy(this.remoteSkateboard.mesh.rotation);
+          this.lastRemoteRotation.copy(this.remoteSkateboard.mesh.rotation);
+          
           this.scene.add(this.remoteSkateboard.mesh);
           console.log("Remote skateboard added to scene");
         }
@@ -344,27 +396,147 @@ export class Game {
     }
   }
   
+  // Update the remote skateboard update method with position buffering and prediction
   private updateRemoteSkateboard(state: any): void {
     if (!this.remoteSkateboard) {
       console.warn("Cannot update remote skateboard: it doesn't exist");
       return;
     }
     
-    console.log("Updating remote skateboard position:", state.position);
-    
-    // Update position
-    this.remoteSkateboard.mesh.position.set(
+    // Create position vector from incoming state
+    const newPosition = new THREE.Vector3(
       state.position.x,
       state.position.y,
       state.position.z
     );
     
-    // Update rotation
-    this.remoteSkateboard.mesh.rotation.set(
+    // Create rotation from incoming state
+    const newRotation = new THREE.Euler(
       state.rotation.x,
       state.rotation.y,
       state.rotation.z
     );
+    
+    // Store previous position and rotation before updating
+    this.lastRemotePosition.copy(this.remoteTargetPosition);
+    this.lastRemoteRotation.copy(this.remoteTargetRotation);
+    
+    // Update target position and rotation
+    this.remoteTargetPosition.copy(newPosition);
+    this.remoteTargetRotation.copy(newRotation);
+    
+    // Calculate velocity based on position change (with smoother velocity)
+    if (this.lastSentTime > 0) {
+      // Calculate time delta between updates
+      const timeDelta = (Date.now() - this.lastSentTime) / 1000; // in seconds
+      if (timeDelta > 0) {
+        // Calculate raw velocity vector
+        const rawVelocity = new THREE.Vector3().subVectors(newPosition, this.lastRemotePosition);
+        
+        // Scale by time delta to get units/second
+        rawVelocity.divideScalar(timeDelta);
+        
+        // Smooth velocity changes by blending with previous velocity
+        this.remoteVelocity.lerp(rawVelocity, 0.3); // 30% new, 70% old for smoother changes
+      }
+    }
+    
+    // Apply trick state if it exists
+    if (state.tricks && this.remoteSkateboard) {
+      // Make sure the flips update immediately
+      // This bypasses the normal flip animation system and directly applies the rotation
+      if (state.tricks.isDoingFlip) {
+        // Force the flip animation to update correctly
+        this.remoteSkateboard.setTrickState(state.tricks);
+      } else {
+        // Normal trick state update
+        this.remoteSkateboard.setTrickState(state.tricks);
+      }
+    }
+    
+    // Update our lastSentTime
+    this.lastSentTime = Date.now();
+  }
+
+  // Enhanced remote skateboard animation with faster rotation
+  private animateRemoteSkateboard(delta: number): void {
+    if (!this.remoteSkateboard || !this.isMultiplayer) return;
+    
+    // Adjust lerp factors based on delta to ensure consistent animation speed
+    const positionLerpAdjusted = Math.min(1, this.remotePositionLerpFactor * (60 * delta));
+    const rotationLerpAdjusted = Math.min(1, this.remoteRotationLerpFactor * (60 * delta));
+    
+    // Apply easing only to position, not to rotation (for faster response)
+    const easedPositionLerp = this.easeOutCubic(positionLerpAdjusted);
+    // No easing for rotation - direct value for faster response
+    
+    // Simple position interpolation without complex prediction
+    this.remoteSkateboard.mesh.position.lerp(this.remoteTargetPosition, easedPositionLerp);
+    
+    // Get the current angle difference to determine if we need a fast sync
+    const angleDiff = Math.abs(
+      this.angleDifference(this.remoteSkateboard.mesh.rotation.y, this.remoteTargetRotation.y)
+    );
+    
+    // For Y rotation (turning), use faster synchronization
+    // Fast direct sync for large turns
+    if (angleDiff > Math.PI / 2) {
+      // If turn is greater than 90 degrees, just jump to the target angle
+      this.remoteSkateboard.mesh.rotation.y = this.remoteTargetRotation.y;
+    } else {
+      // Otherwise use fast lerp with no easing
+      this.remoteSkateboard.mesh.rotation.y = this.lerpAngle(
+        this.remoteSkateboard.mesh.rotation.y,
+        this.remoteTargetRotation.y,
+        rotationLerpAdjusted * 2 // Double the speed
+      );
+    }
+    
+    // For X and Z rotation, use simpler interpolation
+    this.remoteSkateboard.mesh.rotation.x = THREE.MathUtils.lerp(
+      this.remoteSkateboard.mesh.rotation.x,
+      this.remoteTargetRotation.x,
+      rotationLerpAdjusted * 1.5 // 50% faster
+    );
+    
+    this.remoteSkateboard.mesh.rotation.z = THREE.MathUtils.lerp(
+      this.remoteSkateboard.mesh.rotation.z,
+      this.remoteTargetRotation.z,
+      rotationLerpAdjusted * 1.5 // 50% faster
+    );
+    
+    // Add subtle motion to wheels for more liveliness
+    const wheels = this.remoteSkateboard.getWheels();
+    if (wheels && wheels.length > 0) {
+      // Calculate simple speed based on position changes
+      const speed = this.remoteSkateboard.mesh.position.distanceTo(this.remoteTargetPosition) * 10;
+      
+      // Rotate wheels based on speed
+      for (const wheel of wheels) {
+        wheel.rotation.x += speed * delta;
+      }
+    }
+  }
+
+  // Helper function to calculate smallest angle difference between two angles (in radians)
+  private angleDifference(angle1: number, angle2: number): number {
+    const PI2 = Math.PI * 2;
+    
+    // Normalize angles to 0-2π range
+    angle1 = ((angle1 % PI2) + PI2) % PI2;
+    angle2 = ((angle2 % PI2) + PI2) % PI2;
+    
+    // Find the shortest distance between the angles
+    let diff = angle2 - angle1;
+    
+    // Ensure we're taking the shortest path
+    if (diff > Math.PI) {
+      diff -= PI2;
+    } else if (diff < -Math.PI) {
+      diff += PI2;
+    }
+    
+    return diff;
   }
 
   // Create rails and add them to the scene
@@ -432,6 +604,9 @@ export class Game {
     // Update our local skateboard with physics
     this.skateboard.update(delta);
     
+    // Animate remote skateboard with smooth interpolation
+    this.animateRemoteSkateboard(delta);
+    
     // Send network updates at regular intervals
     if (this.isMultiplayer) {
       this.sendNetworkUpdate();
@@ -452,17 +627,20 @@ export class Game {
     this.render();
   }
 
-  // Add this method to handle all network sending functions
+  // Simplify the send network update method to not use dynamic rates
   private sendNetworkUpdate(): void {
     if (!this.networkManager || !this.isMultiplayer) return;
     
     const now = Date.now();
     
-    // Only send updates at the specified rate
+    // Only send updates at the fixed rate
     if (now - this.lastSentTime > this.networkUpdateRate) {
       this.lastSentTime = now;
       
-      // Both host and client send their skateboard state
+      // Get current trick state from skateboard
+      const trickState = this.skateboard.getTrickState();
+      
+      // Simple state update without dynamic update rates
       const state = {
         position: {
           x: this.skateboard.mesh.position.x,
@@ -474,24 +652,57 @@ export class Game {
           y: this.skateboard.mesh.rotation.y,
           z: this.skateboard.mesh.rotation.z
         },
+        // Include estimated velocity for remote prediction
+        velocity: {
+          x: (this.skateboard.mesh.position.x - (this.lastSendPosition?.x || 0)) / (this.networkUpdateRate/1000),
+          y: (this.skateboard.mesh.position.y - (this.lastSendPosition?.y || 0)) / (this.networkUpdateRate/1000),
+          z: (this.skateboard.mesh.position.z - (this.lastSendPosition?.z || 0)) / (this.networkUpdateRate/1000)
+        },
+        // Include trick state for animations
+        tricks: trickState,
         timestamp: now
       };
       
+      // Store current position for velocity calculation on next update
+      this.lastSendPosition = {
+        x: this.skateboard.mesh.position.x,
+        y: this.skateboard.mesh.position.y,
+        z: this.skateboard.mesh.position.z
+      };
+      
       // Host sends using sendGameState, client using sendPlayerInput
-      // but the structure is the same
       if (this.isHost) {
-        console.log("Host sending state update");
         this.networkManager.sendGameState({
           skateboard: state,
           timestamp: now
         });
       } else {
-        console.log("Client sending state update");
         this.networkManager.sendPlayerInput({
           skateboardState: state,
           timestamp: now
         });
       }
     }
+  }
+
+  // Simplify lerpAngle function to avoid potential issues
+  private lerpAngle(current: number, target: number, t: number): number {
+    const PI2 = Math.PI * 2;
+    
+    // Normalize angles to 0-2π range
+    current = ((current % PI2) + PI2) % PI2;
+    target = ((target % PI2) + PI2) % PI2;
+    
+    // Find shortest path
+    let delta = target - current;
+    if (Math.abs(delta) > Math.PI) {
+      if (delta > 0) {
+        delta = delta - PI2;
+      } else {
+        delta = delta + PI2;
+      }
+    }
+    
+    return current + delta * t;
   }
 } 
