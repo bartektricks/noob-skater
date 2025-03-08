@@ -6,23 +6,6 @@ import { Rail } from './Rail';
 import { GameMenu, GameStartOptions } from './GameMenu';
 import { NetworkManager, NetworkManagerEvents } from './NetworkManager';
 
-// Interface for serialized game state to be sent over network
-interface SerializedGameState {
-  skateboard: {
-    position: { x: number, y: number, z: number };
-    rotation: { x: number, y: number, z: number };
-    velocity: { x: number, y: number, z: number };
-    // Add any other skateboard state properties needed
-  };
-  timestamp: number;
-}
-
-// Interface for player input to be sent over network
-interface PlayerInput {
-  keys: { [key: string]: boolean };
-  timestamp: number;
-}
-
 export class Game {
   private scene: THREE.Scene;
   private cameraManager: Camera;
@@ -34,7 +17,6 @@ export class Game {
   private gameMenu: GameMenu;
   private isGameRunning: boolean = false;
   private playerNickname: string = '';
-  private serverType: string = 'local';
   
   // Multiplayer properties
   private networkManager: NetworkManager | null = null;
@@ -43,7 +25,6 @@ export class Game {
   private remoteSkateboard: Skateboard | null = null;
   private lastSentTime: number = 0;
   private networkUpdateRate: number = 30; // 33 updates per second
-  private playerInput: { [key: string]: boolean } = {};
 
   // Add a property to store connection code
   private hostConnectionCode: string = '';
@@ -55,27 +36,11 @@ export class Game {
   private remoteRotationLerpFactor: number = 0.35; // Much faster rotation response
 
   // Enhance remoteTargetPosition and remoteTargetRotation with velocity and acceleration
-  private remoteVelocity: THREE.Vector3 = new THREE.Vector3();
-  private remoteAngularVelocity: THREE.Vector3 = new THREE.Vector3();
   private lastRemotePosition: THREE.Vector3 = new THREE.Vector3();
   private lastRemoteRotation: THREE.Euler = new THREE.Euler();
-  private remotePositionBuffer: {position: THREE.Vector3, timestamp: number}[] = [];
-  private positionBufferSize: number = 3; // How many position updates to buffer
-
-  // Add easing functions for smoother animations
-  private easeOutCubic(x: number): number {
-    return 1 - Math.pow(1 - x, 3);
-  }
-
-  private easeInOutQuad(x: number): number {
-    return x < 0.5 ? 2 * x * x : 1 - Math.pow(-2 * x + 2, 2) / 2;
-  }
 
   // Add the missing lastSendPosition property
   private lastSendPosition: {x: number, y: number, z: number} | null = null;
-
-  // Add a direct sync threshold to skip interpolation for very large rotational changes
-  private rotationDirectSyncThreshold: number = Math.PI / 2; // 90 degrees
 
   constructor() {
     // Create scene
@@ -140,7 +105,11 @@ export class Game {
     // Add event listeners
     window.addEventListener('resize', this.onWindowResize.bind(this));
     window.addEventListener('keydown', this.handleKeyDown.bind(this));
-    window.addEventListener('keyup', this.handleKeyUp.bind(this));
+  }
+
+  // Add easing functions for smoother animations
+  private easeOutCubic(x: number): number {
+    return 1 - Math.pow(1 - x, 3);
   }
   
   // Handle keyboard events
@@ -156,11 +125,6 @@ export class Game {
     // No special handling for multiplayer
     // Local inputs always control local skateboard
     // Network synchronization happens separately via position updates
-  }
-  
-  // Add a key up handler to track when keys are released
-  private handleKeyUp(event: KeyboardEvent): void {
-    // No special handling needed - skateboard class already handles key up events
   }
   
   // Toggle game menu
@@ -435,9 +399,6 @@ export class Game {
         
         // Scale by time delta to get units/second
         rawVelocity.divideScalar(timeDelta);
-        
-        // Smooth velocity changes by blending with previous velocity
-        this.remoteVelocity.lerp(rawVelocity, 0.3); // 30% new, 70% old for smoother changes
       }
     }
     
@@ -564,60 +525,29 @@ export class Game {
     console.log("Rails created:", this.rails.length);
   }
 
-  // Camera getter and setter methods - these methods can be kept for backwards compatibility
-  public getCameraState() {
-    return this.cameraManager.getState();
-  }
-  
-  public setCameraOrbit(value: number): void {
-    // This method no longer supported in the new camera system
-    console.warn('setCameraOrbit is no longer supported. Use angle offset instead.');
-  }
-  
-  public setCameraElevation(value: number): void {
-    // This method no longer supported in the new camera system
-    console.warn('setCameraElevation is no longer supported.');
-  }
-  
-  public setCameraDistance(value: number): void {
-    this.cameraManager.setDistance(value);
-  }
-  
-  public setCameraHeight(value: number): void {
-    this.cameraManager.setHeight(value);
-  }
-  
-  public resetCamera(): void {
-    this.cameraManager.reset();
-  }
-
   private onWindowResize(): void {
     this.cameraManager.setAspectRatio(window.innerWidth / window.innerHeight);
     this.renderer.setSize(window.innerWidth, window.innerHeight);
   }
 
-  public update(): void {
+  private update(): void {
     if (!this.isGameRunning) return;
     
     const delta = this.clock.getDelta();
     
-    // Update our local skateboard with physics
     this.skateboard.update(delta);
     
-    // Animate remote skateboard with smooth interpolation
     this.animateRemoteSkateboard(delta);
     
-    // Send network updates at regular intervals
     if (this.isMultiplayer) {
       this.sendNetworkUpdate();
     }
     
-    // Update UI and camera
     this.ui.update();
     this.cameraManager.update();
   }
 
-  public render(): void {
+  private render(): void {
     this.renderer.render(this.scene, this.cameraManager.getCamera());
   }
 
@@ -627,20 +557,16 @@ export class Game {
     this.render();
   }
 
-  // Simplify the send network update method to not use dynamic rates
   private sendNetworkUpdate(): void {
     if (!this.networkManager || !this.isMultiplayer) return;
     
     const now = Date.now();
     
-    // Only send updates at the fixed rate
     if (now - this.lastSentTime > this.networkUpdateRate) {
       this.lastSentTime = now;
       
-      // Get current trick state from skateboard
       const trickState = this.skateboard.getTrickState();
       
-      // Simple state update without dynamic update rates
       const state = {
         position: {
           x: this.skateboard.mesh.position.x,
@@ -652,25 +578,21 @@ export class Game {
           y: this.skateboard.mesh.rotation.y,
           z: this.skateboard.mesh.rotation.z
         },
-        // Include estimated velocity for remote prediction
         velocity: {
           x: (this.skateboard.mesh.position.x - (this.lastSendPosition?.x || 0)) / (this.networkUpdateRate/1000),
           y: (this.skateboard.mesh.position.y - (this.lastSendPosition?.y || 0)) / (this.networkUpdateRate/1000),
           z: (this.skateboard.mesh.position.z - (this.lastSendPosition?.z || 0)) / (this.networkUpdateRate/1000)
         },
-        // Include trick state for animations
         tricks: trickState,
         timestamp: now
       };
       
-      // Store current position for velocity calculation on next update
       this.lastSendPosition = {
         x: this.skateboard.mesh.position.x,
         y: this.skateboard.mesh.position.y,
         z: this.skateboard.mesh.position.z
       };
       
-      // Host sends using sendGameState, client using sendPlayerInput
       if (this.isHost) {
         this.networkManager.sendGameState({
           skateboard: state,
@@ -685,15 +607,12 @@ export class Game {
     }
   }
 
-  // Simplify lerpAngle function to avoid potential issues
   private lerpAngle(current: number, target: number, t: number): number {
     const PI2 = Math.PI * 2;
     
-    // Normalize angles to 0-2π range
     current = ((current % PI2) + PI2) % PI2;
     target = ((target % PI2) + PI2) % PI2;
     
-    // Find shortest path
     let delta = target - current;
     if (Math.abs(delta) > Math.PI) {
       if (delta > 0) {

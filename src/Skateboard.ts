@@ -619,13 +619,6 @@ export class Skateboard {
     }
   }
   
-  // Try to start grinding on a nearby rail - this is now only called directly by keypress
-  private tryStartGrinding(): void {
-    // This method is kept for backward compatibility but now just sets the wantsToGrind flag
-    this.wantsToGrind = true;
-    console.log("Trying to grind - looking for rails until landing");
-  }
-  
   // Start grinding on a specific rail
   private startGrinding(rail: Rail): void {
     // Store initial position and target position for smooth transition
@@ -838,10 +831,7 @@ export class Skateboard {
   }
   
   // Exit the rail (either by reaching the end or jumping off)
-  private exitRail(isJumping: boolean): void {
-    // Get current direction at end of rail based on grind direction
-    const exitDirection = this.rotation;
-    
+  private exitRail(isJumping: boolean): void {    
     // Apply velocity in the direction we were grinding
     const exitVelocity = this.railExitVelocity;
     

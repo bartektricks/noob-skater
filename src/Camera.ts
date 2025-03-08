@@ -31,7 +31,6 @@ export class Camera {
   private targetCameraAngle: number = 0; // Angle we're moving toward
   private currentCameraAngle: number = 0; // Current actual camera angle
   private cameraLerpFactor: number = 0.03; // How quickly camera rotates to new position (lower = slower)
-  private worldOriented: boolean = true; // Camera oriented to world not board
   private lastUpdateTime: number = 0; // For frame-rate independent updates
 
   constructor(aspectRatio: number) {
@@ -139,7 +138,6 @@ export class Camera {
     this.target.copy(skateboardPosition);
   }
   
-  // Original static camera method preserved for backward compatibility
   private updateCameraStatic(): void {
     // Calculate horizontal position using orbit
     const horizontalDistance = this.state.distance;
@@ -158,11 +156,6 @@ export class Camera {
     
     // Look at the adjusted target
     this.camera.lookAt(adjustedTarget);
-  }
-  
-  public setTarget(target: THREE.Vector3): void {
-    this.target.copy(target);
-    this.updateCamera();
   }
   
   public setAspectRatio(aspectRatio: number): void {
@@ -198,14 +191,16 @@ export class Camera {
     this.updateDebugUI();
   }
   
-  public setVerticalFraming(value: number): void {
+  // Changed to private since it's only used internally by the debug UI
+  private setVerticalFraming(value: number): void {
     // Limit the range to reasonable values
     this.state.verticalFraming = Math.max(-0.3, Math.min(0.5, value));
     this.updateCamera();
     this.updateDebugUI();
   }
   
-  public setAngleOffset(value: number): void {
+  // Changed to private since it's only used internally by the debug UI
+  private setAngleOffset(value: number): void {
     // Angle offset in radians
     this.state.angleOffset = value;
     this.updateCamera();
@@ -235,7 +230,6 @@ export class Camera {
     }
     
     this.lastUpdateTime = Date.now();
-    this.worldOriented = true;
     
     this.updateCamera();
     this.updateDebugUI();
@@ -378,8 +372,9 @@ export class Camera {
 
   /**
    * Set the camera smoothing factor (how quickly it follows the target)
+   * Changed to private since it's only used internally by the debug UI
    */
-  public setCameraSmoothing(value: number): void {
+  private setCameraSmoothing(value: number): void {
     this.cameraLerpFactor = Math.max(0.005, Math.min(0.2, value));
     this.updateDebugUI();
   }

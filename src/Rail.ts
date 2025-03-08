@@ -139,28 +139,6 @@ export class Rail {
     return attractionForce;
   }
   
-  // Check if a position is close enough to the rail for grinding
-  public isNearRail(position: THREE.Vector3, threshold: number = 2.0): boolean {
-    const closestPoint = this.getClosestPointOnRail(position);
-    
-    // Calculate horizontal distance (X and Z only)
-    const horizontalDistance = Math.sqrt(
-      Math.pow(position.x - closestPoint.x, 2) + 
-      Math.pow(position.z - closestPoint.z, 2)
-    );
-    
-    // Calculate vertical distance (Y only)
-    const verticalDistance = Math.abs(position.y - closestPoint.y);
-    
-    console.log("Distance to rail - Horizontal:", horizontalDistance, "Vertical:", verticalDistance);
-    
-    // Check if within both horizontal and vertical thresholds
-    const horizontalThreshold = 1.5;
-    const verticalThreshold = 3.5;
-    
-    return horizontalDistance < horizontalThreshold && verticalDistance < verticalThreshold;
-  }
-  
   // Get progress along the rail (0 at start, 1 at end)
   public getProgressAlongRail(position: THREE.Vector3): number {
     const closestPoint = this.getClosestPointOnRail(position);
