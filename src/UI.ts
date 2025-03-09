@@ -23,50 +23,32 @@ export class UI {
 
 		// Create trick display
 		this.trickDisplay = document.createElement("div");
-		this.trickDisplay.className = "trick-display";
+		this.trickDisplay.className = "fixed bottom-24 left-1/2 transform -translate-x-1/2 bg-black/70 text-white py-2 px-4 rounded text-center font-sans text-lg";
 		document.body.appendChild(this.trickDisplay);
 
 		// Create notification display
 		this.notificationDisplay = document.createElement("div");
-		this.notificationDisplay.className = "notification-display";
-		this.notificationDisplay.style.position = "absolute";
-		this.notificationDisplay.style.top = "20px";
-		this.notificationDisplay.style.left = "50%";
-		this.notificationDisplay.style.transform = "translateX(-50%)";
-		this.notificationDisplay.style.backgroundColor = "rgba(0, 0, 0, 0.7)";
-		this.notificationDisplay.style.color = "white";
-		this.notificationDisplay.style.padding = "10px 20px";
-		this.notificationDisplay.style.borderRadius = "5px";
-		this.notificationDisplay.style.zIndex = "1000";
-		this.notificationDisplay.style.display = "none";
+		this.notificationDisplay.className = "fixed top-5 left-1/2 transform -translate-x-1/2 bg-black/70 text-white py-2 px-5 rounded z-50 hidden";
 		document.body.appendChild(this.notificationDisplay);
 
 		// Create connection status display
 		this.connectionStatusDisplay = document.createElement("div");
-		this.connectionStatusDisplay.className = "connection-status disconnected";
+		this.connectionStatusDisplay.className = "connection-status disconnected fixed top-20 right-5 py-1 px-3 rounded text-white text-sm hidden";
 		this.connectionStatusDisplay.textContent = "Disconnected";
-		this.connectionStatusDisplay.style.display = "none"; // Hidden by default
 		document.body.appendChild(this.connectionStatusDisplay);
 	}
 
 	private createPlayerInfo(): void {
 		// Create player info container
 		this.playerInfoElement = document.createElement("div");
-		this.playerInfoElement.style.position = "fixed";
-		this.playerInfoElement.style.top = "20px";
-		this.playerInfoElement.style.left = "20px";
-		this.playerInfoElement.style.backgroundColor = "rgba(0, 0, 0, 0.7)";
-		this.playerInfoElement.style.color = "white";
-		this.playerInfoElement.style.padding = "10px 20px";
-		this.playerInfoElement.style.borderRadius = "5px";
-		this.playerInfoElement.style.fontFamily = "Arial, sans-serif";
+		this.playerInfoElement.className = "fixed top-5 left-5 bg-black/70 text-white py-2 px-5 rounded font-sans";
 		this.updatePlayerInfo();
 		document.body.appendChild(this.playerInfoElement);
 	}
 
 	private updatePlayerInfo(): void {
 		this.playerInfoElement.innerHTML = `
-      <div style="font-weight: bold;">${this.playerNickname}</div>
+      <div class="font-bold">${this.playerNickname}</div>
       <div>Server: Local</div>
     `;
 	}
@@ -79,18 +61,11 @@ export class UI {
 	private createControlsInfo(): void {
 		// Create controls info container
 		this.controlsElement = document.createElement("div");
-		this.controlsElement.style.position = "fixed";
-		this.controlsElement.style.bottom = "20px";
-		this.controlsElement.style.left = "20px";
-		this.controlsElement.style.backgroundColor = "rgba(0, 0, 0, 0.7)";
-		this.controlsElement.style.color = "white";
-		this.controlsElement.style.padding = "10px 20px";
-		this.controlsElement.style.borderRadius = "5px";
-		this.controlsElement.style.fontFamily = "Arial, sans-serif";
+		this.controlsElement.className = "fixed bottom-5 left-5 bg-black/70 text-white py-2 px-5 rounded font-sans";
 
 		// Add controls information
 		this.controlsElement.innerHTML = `
-      <div style="margin-bottom: 5px; font-weight: bold;">Controls:</div>
+      <div class="mb-1 font-bold">Controls:</div>
       <div>W/S - Accelerate/Brake</div>
       <div>A/D - Turn Left/Right</div>
       <div>Spacebar - Jump</div>
@@ -104,16 +79,7 @@ export class UI {
 	private createTrickText(): void {
 		// Create trick text element
 		this.trickTextElement = document.createElement("div");
-		this.trickTextElement.style.position = "fixed";
-		this.trickTextElement.style.top = "90%";
-		this.trickTextElement.style.left = "50%";
-		this.trickTextElement.style.transform = "translate(-50%, -50%)";
-		this.trickTextElement.style.color = "white";
-		this.trickTextElement.style.textShadow = "2px 2px 4px #000000";
-		this.trickTextElement.style.fontSize = "24px";
-		this.trickTextElement.style.fontWeight = "bold";
-		this.trickTextElement.style.fontFamily = "Arial, sans-serif";
-		this.trickTextElement.style.textAlign = "center";
+		this.trickTextElement.className = "fixed top-90 left-1/2 transform -translate-x-1/2 transform -translate-y-1/2 text-white text-shadow-2xl text-2xl font-bold";
 		this.trickTextElement.style.opacity = "0";
 		this.trickTextElement.style.transition = "opacity 0.5s ease-out";
 		this.trickTextElement.style.pointerEvents = "none"; // Don't interfere with clicks
@@ -142,7 +108,7 @@ export class UI {
 	 */
 	public showNotification(message: string, duration = 3000): void {
 		this.notificationDisplay.textContent = message;
-		this.notificationDisplay.style.display = "block";
+		this.notificationDisplay.className = "fixed top-5 left-1/2 transform -translate-x-1/2 bg-black/70 text-white py-2 px-5 rounded z-50";
 
 		// Clear any existing timeout
 		if (this.notificationTimeout !== null) {
@@ -151,7 +117,7 @@ export class UI {
 
 		// Set timeout to hide notification
 		this.notificationTimeout = window.setTimeout(() => {
-			this.notificationDisplay.style.display = "none";
+			this.notificationDisplay.className = "fixed top-5 left-1/2 transform -translate-x-1/2 bg-black/70 text-white py-2 px-5 rounded z-50 hidden";
 			this.notificationTimeout = null;
 		}, duration);
 	}
@@ -175,9 +141,7 @@ export class UI {
 			status.charAt(0).toUpperCase() + status.slice(1);
 
 		// Show the status display
-		this.connectionStatusDisplay.style.display = "block";
-
-		console.log("Connection status updated:", status);
+		this.connectionStatusDisplay.className = "connection-status fixed top-20 right-5 py-1 px-3 rounded text-white text-sm";
 	}
 
 	// Add method to show connected players
@@ -187,17 +151,8 @@ export class UI {
 	): void {
 		if (!this.connectedPlayersElement) {
 			this.connectedPlayersElement = document.createElement("div");
-			this.connectedPlayersElement.className = "connected-players";
-			this.connectedPlayersElement.style.position = "absolute";
-			this.connectedPlayersElement.style.top = "80px";
-			this.connectedPlayersElement.style.right = "20px";
-			this.connectedPlayersElement.style.backgroundColor = "rgba(0, 0, 0, 0.6)";
-			this.connectedPlayersElement.style.color = "white";
-			this.connectedPlayersElement.style.padding = "10px";
-			this.connectedPlayersElement.style.borderRadius = "5px";
-			this.connectedPlayersElement.style.fontFamily = "sans-serif";
-			this.connectedPlayersElement.style.fontSize = "14px";
-			this.connectedPlayersElement.style.zIndex = "1000";
+			this.connectedPlayersElement.className = "fixed top-80 right-5 bg-black/60 text-white py-2 px-5 rounded font-sans";
+			this.connectedPlayersElement.style.display = "none";
 			document.body.appendChild(this.connectedPlayersElement);
 		}
 
@@ -229,63 +184,33 @@ export class UI {
 	private createPauseMenu(): void {
 		// Create pause menu container
 		this.pauseMenuElement = document.createElement("div");
-		this.pauseMenuElement.className = "pause-menu";
-		this.pauseMenuElement.style.position = "absolute";
-		this.pauseMenuElement.style.top = "0";
-		this.pauseMenuElement.style.left = "0";
-		this.pauseMenuElement.style.width = "100%";
-		this.pauseMenuElement.style.height = "100%";
-		this.pauseMenuElement.style.backgroundColor = "rgba(0, 0, 0, 0.7)";
-		this.pauseMenuElement.style.display = "none";
-		this.pauseMenuElement.style.zIndex = "2000";
-		this.pauseMenuElement.style.alignItems = "center";
-		this.pauseMenuElement.style.justifyContent = "center";
-		this.pauseMenuElement.style.flexDirection = "column";
+		this.pauseMenuElement.className = "fixed top-0 left-0 w-full h-full bg-black/70 flex items-center justify-center z-50 hidden";
 
 		// Create pause menu title
 		const title = document.createElement("h2");
+		title.className = "text-white text-3xl mb-3 font-bold";
 		title.textContent = "Game Paused";
-		title.style.color = "white";
-		title.style.marginBottom = "30px";
-		title.style.fontSize = "32px";
 		this.pauseMenuElement.appendChild(title);
 
 		// Create server ID display element (initially hidden)
 		this.serverIdElement = document.createElement("div");
-		this.serverIdElement.className = "server-id";
-		this.serverIdElement.style.color = "white";
-		this.serverIdElement.style.backgroundColor = "rgba(0, 0, 0, 0.5)";
-		this.serverIdElement.style.padding = "10px 15px";
-		this.serverIdElement.style.borderRadius = "4px";
-		this.serverIdElement.style.marginBottom = "20px";
-		this.serverIdElement.style.fontFamily = "monospace";
-		this.serverIdElement.style.fontSize = "16px";
+		this.serverIdElement.className = "text-white text-sm mb-3";
 		this.serverIdElement.style.display = "none";
 		this.pauseMenuElement.appendChild(this.serverIdElement);
 
 		// Create button container
 		const buttonContainer = document.createElement("div");
-		buttonContainer.style.display = "flex";
-		buttonContainer.style.flexDirection = "column";
-		buttonContainer.style.gap = "15px";
-		buttonContainer.style.width = "250px";
+		buttonContainer.className = "flex flex-col gap-3 w-full";
 
 		// Create resume button
 		const resumeButton = document.createElement("button");
+		resumeButton.className = "bg-green-500 text-white py-2 px-4 rounded font-bold text-lg";
 		resumeButton.textContent = "Resume Game";
-		resumeButton.style.padding = "12px 20px";
-		resumeButton.style.fontSize = "18px";
-		resumeButton.style.border = "none";
-		resumeButton.style.borderRadius = "4px";
-		resumeButton.style.backgroundColor = "#4CAF50";
-		resumeButton.style.color = "white";
-		resumeButton.style.cursor = "pointer";
-		resumeButton.style.fontWeight = "bold";
 		resumeButton.addEventListener("mouseover", () => {
-			resumeButton.style.backgroundColor = "#45a049";
+			resumeButton.className = "bg-green-600";
 		});
 		resumeButton.addEventListener("mouseout", () => {
-			resumeButton.style.backgroundColor = "#4CAF50";
+			resumeButton.className = "bg-green-500";
 		});
 		resumeButton.addEventListener("click", () => {
 			this.togglePauseMenu(false);
@@ -300,20 +225,13 @@ export class UI {
 
 		// Create main menu button
 		const mainMenuButton = document.createElement("button");
+		mainMenuButton.className = "bg-red-500 text-white py-2 px-4 rounded font-bold text-lg";
 		mainMenuButton.textContent = "Back to Main Menu";
-		mainMenuButton.style.padding = "12px 20px";
-		mainMenuButton.style.fontSize = "18px";
-		mainMenuButton.style.border = "none";
-		mainMenuButton.style.borderRadius = "4px";
-		mainMenuButton.style.backgroundColor = "#f44336";
-		mainMenuButton.style.color = "white";
-		mainMenuButton.style.cursor = "pointer";
-		mainMenuButton.style.fontWeight = "bold";
 		mainMenuButton.addEventListener("mouseover", () => {
-			mainMenuButton.style.backgroundColor = "#d32f2f";
+			mainMenuButton.className = "bg-red-600";
 		});
 		mainMenuButton.addEventListener("mouseout", () => {
-			mainMenuButton.style.backgroundColor = "#f44336";
+			mainMenuButton.className = "bg-red-500";
 		});
 		mainMenuButton.addEventListener("click", () => {
 			// First toggle the pause menu to hide it
@@ -344,13 +262,13 @@ export class UI {
 		}
 
 		if (this.isPauseMenuVisible) {
-			this.pauseMenuElement.style.display = "flex";
+			this.pauseMenuElement.className = "fixed top-0 left-0 w-full h-full bg-black/70 flex items-center justify-center z-50";
 			// Hide the exit button when pause menu is visible
 			if (this.exitButtonElement) {
 				this.exitButtonElement.style.display = "none";
 			}
 		} else {
-			this.pauseMenuElement.style.display = "none";
+			this.pauseMenuElement.className = "fixed top-0 left-0 w-full h-full bg-black/70 flex items-center justify-center z-50 hidden";
 			// Show the exit button when pause menu is hidden
 			if (this.exitButtonElement) {
 				this.exitButtonElement.style.display = "block";
@@ -389,11 +307,11 @@ export class UI {
 				? "You've taken over as host because the original host disconnected. Others can still join your server."
 				: "Share this ID or let others find your server in the server list";
 				
-			this.serverIdElement.innerHTML = `
-				<div class="server-info-title">${titleText}</div>
-				<div class="server-info-id">ID: ${serverId}</div>
-				<div class="server-info-text">Players must use this ID to join your game</div>
-				<div class="server-info-help">${helpText}</div>
+			this.serverIdElement.textContent = `
+				<div class="font-bold mb-1">${titleText}</div>
+				<div class="text-sm">ID: ${serverId}</div>
+				<div class="text-xs">Players must use this ID to join your game</div>
+				<div class="text-xs">${helpText}</div>
 			`;
 			this.serverIdElement.style.display = "block";
 			
@@ -402,27 +320,18 @@ export class UI {
 				const styleElement = document.createElement('style');
 				styleElement.id = 'server-info-styles';
 				styleElement.textContent = `
-					.server-info-title {
+					.font-bold {
 						font-weight: bold;
 						font-size: 16px;
 						margin-bottom: 5px;
 						color: ${isTakeover ? '#FFA500' : '#4CAF50'};
 					}
-					.server-info-id {
-						font-family: monospace;
-						background-color: rgba(0, 0, 0, 0.3);
-						padding: 5px 8px;
-						border-radius: 4px;
-						margin-bottom: 8px;
+					.text-sm {
 						font-size: 14px;
-						word-break: break-all;
-					}
-					.server-info-text {
-						font-size: 13px;
 						margin-bottom: 5px;
 						font-weight: bold;
 					}
-					.server-info-help {
+					.text-xs {
 						font-size: 12px;
 						opacity: 0.8;
 					}

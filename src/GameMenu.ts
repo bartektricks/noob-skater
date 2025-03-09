@@ -44,10 +44,11 @@ export class GameMenu {
 		// Create main container
 		this.menuElement = document.createElement("div");
 		this.menuElement.id = "game-menu";
+		this.menuElement.className = "fixed inset-0 flex justify-center items-center bg-black/80 z-[1000] font-sans";
 
 		// Create menu content
 		this.menuContainer = document.createElement("div");
-		this.menuContainer.className = "menu-container";
+		this.menuContainer.className = "bg-gray-800 rounded-lg shadow-lg p-6 w-[400px] max-w-[90%] text-center text-white";
 
 		// Create form
 		const form = document.createElement("form");
@@ -58,15 +59,17 @@ export class GameMenu {
 
 		// Title
 		const title = document.createElement("h1");
+		title.className = "text-2xl font-bold uppercase tracking-wider text-red-400 mb-4";
 		title.textContent = "Noob Skater";
 		form.appendChild(title);
 
 		// Nickname field
 		const nicknameGroup = document.createElement("div");
-		nicknameGroup.className = "form-group";
+		nicknameGroup.className = "mb-5 text-left";
 
 		const nicknameLabel = document.createElement("label");
 		nicknameLabel.htmlFor = "nickname";
+		nicknameLabel.className = "block mb-2 font-bold text-gray-300";
 		nicknameLabel.textContent = "Nickname:";
 		nicknameGroup.appendChild(nicknameLabel);
 
@@ -74,6 +77,7 @@ export class GameMenu {
 		this.nicknameInput.type = "text";
 		this.nicknameInput.id = "nickname";
 		this.nicknameInput.name = "nickname";
+		this.nicknameInput.className = "w-full p-2 rounded bg-gray-700 border-none text-white text-base";
 		this.nicknameInput.placeholder = "Enter your nickname";
 		this.nicknameInput.required = true;
 		this.nicknameInput.maxLength = 15;
@@ -83,48 +87,53 @@ export class GameMenu {
 
 		// Game Mode Selection
 		const gameModeGroup = document.createElement("div");
-		gameModeGroup.className = "form-group";
+		gameModeGroup.className = "mb-5 text-left";
 		
 		const gameModeLabel = document.createElement("div");
-		gameModeLabel.className = "group-label";
+		gameModeLabel.className = "block mb-2 font-bold text-gray-300";
 		gameModeLabel.textContent = "Game Mode:";
 		gameModeGroup.appendChild(gameModeLabel);
 		
 		// Online Mode option
 		const onlineModeContainer = document.createElement("div");
-		onlineModeContainer.className = "radio-container";
+		onlineModeContainer.className = "flex items-center mb-2";
 		
 		this.onlineModeRadio = document.createElement("input");
 		this.onlineModeRadio.type = "radio";
 		this.onlineModeRadio.id = "online-mode";
 		this.onlineModeRadio.name = "game-mode";
+		this.onlineModeRadio.className = "mr-2";
 		this.onlineModeRadio.checked = true;
+		this.onlineModeRadio.addEventListener("change", () => this.toggleGameModeOptions());
+		onlineModeContainer.appendChild(this.onlineModeRadio);
 		
 		const onlineModeLabel = document.createElement("label");
 		onlineModeLabel.htmlFor = "online-mode";
-		onlineModeLabel.textContent = "Online";
-		
-		onlineModeContainer.appendChild(this.onlineModeRadio);
+		onlineModeLabel.className = "text-gray-300";
+		onlineModeLabel.textContent = "Online Mode";
 		onlineModeContainer.appendChild(onlineModeLabel);
+		
 		gameModeGroup.appendChild(onlineModeContainer);
 		
 		// Offline Mode option
 		const offlineModeContainer = document.createElement("div");
-		offlineModeContainer.className = "radio-container";
+		offlineModeContainer.className = "flex items-center";
 		
 		this.offlineModeRadio = document.createElement("input");
 		this.offlineModeRadio.type = "radio";
 		this.offlineModeRadio.id = "offline-mode";
 		this.offlineModeRadio.name = "game-mode";
+		this.offlineModeRadio.className = "mr-2";
+		this.offlineModeRadio.addEventListener("change", () => this.toggleGameModeOptions());
+		offlineModeContainer.appendChild(this.offlineModeRadio);
 		
 		const offlineModeLabel = document.createElement("label");
 		offlineModeLabel.htmlFor = "offline-mode";
-		offlineModeLabel.textContent = "Offline";
-		
-		offlineModeContainer.appendChild(this.offlineModeRadio);
+		offlineModeLabel.className = "text-gray-300";
+		offlineModeLabel.textContent = "Offline Mode";
 		offlineModeContainer.appendChild(offlineModeLabel);
-		gameModeGroup.appendChild(offlineModeContainer);
 		
+		gameModeGroup.appendChild(offlineModeContainer);
 		form.appendChild(gameModeGroup);
 		
 		// Server Mode Options (visible only when online mode is selected)
@@ -247,15 +256,17 @@ export class GameMenu {
 		
 		// Buttons
 		const buttonGroup = document.createElement("div");
-		buttonGroup.className = "form-group button-group";
+		buttonGroup.className = "mt-6 flex flex-col gap-3";
 		
 		this.startButton = document.createElement("button");
 		this.startButton.type = "submit";
+		this.startButton.className = "bg-blue-500 hover:bg-blue-600 text-white py-3 px-6 rounded font-bold text-lg transition-colors";
 		this.startButton.textContent = "Start Game";
 		buttonGroup.appendChild(this.startButton);
 		
 		this.resumeButton = document.createElement("button");
 		this.resumeButton.type = "button";
+		this.resumeButton.className = "bg-green-500 hover:bg-green-600 text-white py-3 px-6 rounded font-bold text-lg transition-colors hidden";
 		this.resumeButton.textContent = "Resume Game";
 		this.resumeButton.style.display = "none";
 		this.resumeButton.onclick = () => this.resumeGame();
@@ -517,58 +528,49 @@ export class GameMenu {
 
 	// Add this method to show a special waiting screen for the host
 	public showHostWaitingScreen(): void {
-		// Hide the main form elements except for the peer code display
+		// Hide all form elements except the title
 		const form = this.menuContainer.querySelector("form");
-
-		if (!form) return;
-
-		const formChildren = form.children;
-
-		// Hide everything except the title and the peer code display
-		for (let i = 0; i < formChildren.length; i++) {
-			const child = formChildren[i] as HTMLElement;
-
-			// Keep the title and peer code display visible
-			if (child.tagName === "H1" || child === this.p2pOptionsContainer) {
-				child.style.display = "block";
-			} else {
-				child.style.display = "none";
-			}
-		}
-
-		// Within p2pOptionsContainer, hide everything except peerCodeDisplay
-		const p2pChildren = this.p2pOptionsContainer?.children;
-		if (p2pChildren) {
-			for (let i = 0; i < p2pChildren.length; i++) {
-				const child = p2pChildren[i] as HTMLElement;
-				if (child !== this.peerCodeDisplay) {
-					child.style.display = "none";
+		if (form) {
+			for (const child of form.children) {
+				// Don't hide the title
+				if (
+					child.tagName === "H1" ||
+					child.classList.contains("connection-message") ||
+					child.classList.contains("cancel-button")
+				) {
+					return;
 				}
+				child.classList.add("hidden");
 			}
 		}
 
+		// Show connection message
+		const connectionMessage = document.createElement("div");
+		connectionMessage.className = "my-6 text-center";
+		connectionMessage.innerHTML = `
+			<p class="text-lg font-bold text-yellow-300 mb-4">Waiting for another player to join...</p>
+			<p class="text-sm text-gray-300 mb-6">Share the code below with a friend</p>
+		`;
+		connectionMessage.classList.add("connection-message");
+		
+		// Show peer code
+		this.peerCodeDisplay = document.createElement("div");
+		this.peerCodeDisplay.className = "bg-gray-900 text-yellow-300 p-4 rounded-lg font-mono text-xl mb-6 animate-pulse-custom flex justify-center";
+		this.peerCodeDisplay.id = "peer-code-display";
+		this.peerCodeDisplay.textContent = "Generating code...";
+		
 		// Show a cancel button to go back to the main menu
 		const cancelButton = document.createElement("button");
 		cancelButton.textContent = "Cancel";
-		cancelButton.className = "menu-button cancel-button";
-		cancelButton.style.backgroundColor = "#666";
-		cancelButton.style.marginTop = "20px";
+		cancelButton.className = "bg-gray-600 hover:bg-gray-500 text-white py-2 px-4 rounded mt-5";
 		cancelButton.addEventListener("click", () => {
-			// Reset UI and show the full menu again
 			this.resetMenuDisplay();
-			// Don't trigger game start - just go back to menu
 		});
 
-		// Add a connection status message
-		const statusMessage = document.createElement("p");
-		statusMessage.className = "connection-message";
-		statusMessage.textContent = "Waiting for another player to connect...";
-		statusMessage.style.marginTop = "20px";
-		statusMessage.style.fontStyle = "italic";
-
 		// Add these elements to the form
-		form.appendChild(statusMessage);
-		form.appendChild(cancelButton);
+		form?.appendChild(connectionMessage);
+		form?.appendChild(this.peerCodeDisplay);
+		form?.appendChild(cancelButton);
 	}
 
 	// Add this method to reset the menu display
