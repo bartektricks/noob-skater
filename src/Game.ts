@@ -96,8 +96,17 @@ export class Game {
 		// Create UI
 		this.ui = new UI();
 
-		// Connect the exit button to the returnToMainMenu method
-		this.ui.setExitToMenuCallback(() => this.returnToMainMenu());
+		// Connect the exit button to the returnToMainMenu method with proper binding
+		this.ui.setExitToMenuCallback(() => {
+			console.log("Exit callback triggered");
+			this.returnToMainMenu();
+		});
+		
+		// Connect the resume button to the resumeGame method
+		this.ui.setResumeGameCallback(() => {
+			console.log("Resume callback triggered");
+			this.resumeGame();
+		});
 
 		// Create and add rails
 		this.createRails();
@@ -160,7 +169,9 @@ export class Game {
 				// If game is already paused but pause menu is visible, hide it and resume
 				if (this.ui.getIsPauseMenuVisible()) {
 					this.ui.togglePauseMenu(false);
-					this.isGameRunning = true;
+					
+					// Resume the game properly
+					this.resumeGame();
 				} else {
 					// Otherwise toggle the main menu (GameMenu)
 					this.toggleMenu();
@@ -219,6 +230,8 @@ export class Game {
 	 * Return to the main menu, resetting the game state
 	 */
 	private async returnToMainMenu(): Promise<void> {
+		console.log("Returning to main menu...");
+		
 		// Hide pause menu if it's open
 		this.ui.togglePauseMenu(false);
 
@@ -270,8 +283,10 @@ export class Game {
 		this.cameraManager.reset();
 
 		// Reset the game menu to its initial state and show it
+		console.log("Resetting and showing game menu...");
 		this.gameMenu.resetToInitialState();
 		this.gameMenu.show();
+		console.log("Game menu should now be visible");
 	}
 	
 	private async cleanupOnlineServer(): Promise<void> {
@@ -326,9 +341,12 @@ export class Game {
 			if (this.isOnlineMode && this.serverId) {
 				this.ui.setServerIdInPauseMenu(this.serverId);
 			}
+			
+			// Make sure the skateboard is visible
+			this.skateboard.mesh.visible = true;
 		} else {
 			// Just resuming - simply set the running flag
-			this.isGameRunning = true;
+			this.resumeGame();
 		}
 	}
 
@@ -482,24 +500,14 @@ export class Game {
 								}
 							}
 						}
-
-						// Log connected players for debugging
-						console.log(
-							"Current remote players:",
-							Array.from(this.remotePlayers.keys()),
-						);
 					}
 				}
 			},
 
 			onPlayerInputReceived: (input, peerId) => {
-				if (this.isHost) {
-					console.log("Host received input from client:", peerId);
-
-					// Use the input to update the appropriate remote skateboard
-					if (input.skateboardState) {
-						this.updateOrCreateRemotePlayer(peerId, input.skateboardState);
-					}
+				// Host receives input from clients and updates their state
+				if (this.isHost && input.skateboardState) {
+					this.updateOrCreateRemotePlayer(peerId, input.skateboardState);
 				}
 			},
 
@@ -529,7 +537,7 @@ export class Game {
 					const peers = this.networkManager.getConnectedPeers();
 					this.ui.updateConnectedPlayers(peers.length, peers);
 				}
-			},
+			}
 		};
 
 		// Initialize network manager
@@ -1460,5 +1468,18 @@ export class Game {
 				skateboard.mesh.rotation.z = 0; // Reset z rotation
 			}
 		}
+	}
+
+	/**
+	 * Resume the game from pause
+	 */
+	private resumeGame(): void {
+		console.log("Resuming game...");
+		
+		// Ensure the skateboard is visible
+		this.skateboard.mesh.visible = true;
+		
+		// Resume the game
+		this.isGameRunning = true;
 	}
 }

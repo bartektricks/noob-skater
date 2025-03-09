@@ -21,7 +21,7 @@ export class GameMenu {
 	private clientRoleRadio!: HTMLInputElement;
 	private peerCodeInput!: HTMLInputElement;
 	private peerCodeDisplay!: HTMLDivElement;
-	private p2pOptionsContainer!: HTMLDivElement;
+	private p2pOptionsContainer: HTMLDivElement | null = null;
 	
 	// Server mode elements
 	private onlineModeRadio!: HTMLInputElement;
@@ -537,11 +537,13 @@ export class GameMenu {
 		}
 
 		// Within p2pOptionsContainer, hide everything except peerCodeDisplay
-		const p2pChildren = this.p2pOptionsContainer.children;
-		for (let i = 0; i < p2pChildren.length; i++) {
-			const child = p2pChildren[i] as HTMLElement;
-			if (child !== this.peerCodeDisplay) {
-				child.style.display = "none";
+		const p2pChildren = this.p2pOptionsContainer?.children;
+		if (p2pChildren) {
+			for (let i = 0; i < p2pChildren.length; i++) {
+				const child = p2pChildren[i] as HTMLElement;
+				if (child !== this.peerCodeDisplay) {
+					child.style.display = "none";
+				}
 			}
 		}
 
@@ -595,15 +597,18 @@ export class GameMenu {
 			}
 		}
 
-		// Reset p2pOptionsContainer children display
-		const p2pChildren = this.p2pOptionsContainer.children;
-		for (let i = 0; i < p2pChildren.length; i++) {
-			const child = p2pChildren[i] as HTMLElement;
-			child.style.display = "block";
+		// Reset p2pOptionsContainer children display if it exists
+		// Note: In the new UI, we don't use p2pOptionsContainer anymore
+		if (this.p2pOptionsContainer?.children) {
+			const p2pChildren = this.p2pOptionsContainer.children;
+			for (let i = 0; i < p2pChildren.length; i++) {
+				const child = p2pChildren[i] as HTMLElement;
+				child.style.display = "block";
+			}
 		}
 
 		// Re-apply the toggle to hide/show appropriate elements
-		this.toggleServerOptions();
+		this.toggleGameModeOptions();
 	}
 
 	// Add this method to reset the menu to its initial state

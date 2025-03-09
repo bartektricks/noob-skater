@@ -11,6 +11,7 @@ export class UI {
 	private notificationTimeout: number | null = null;
 	private connectionStatusDisplay: HTMLDivElement;
 	private onExitToMenu: (() => void) | null = null; // Callback for exit button
+	private onResumeGame: (() => void) | null = null; // Callback for resume button
 	private isPauseMenuVisible = false; // Track pause menu visibility
 	private connectedPlayersElement: HTMLDivElement | null = null;
 
@@ -288,6 +289,12 @@ export class UI {
 		});
 		resumeButton.addEventListener("click", () => {
 			this.togglePauseMenu(false);
+			
+			// Call the resume game callback if it exists
+			if (this.onResumeGame) {
+				console.log("Resuming game...");
+				this.onResumeGame();
+			}
 		});
 		buttonContainer.appendChild(resumeButton);
 
@@ -309,9 +316,15 @@ export class UI {
 			mainMenuButton.style.backgroundColor = "#f44336";
 		});
 		mainMenuButton.addEventListener("click", () => {
+			// First toggle the pause menu to hide it
+			this.togglePauseMenu(false);
+			
+			// Then check if we have a callback and call it
 			if (this.onExitToMenu) {
-				this.togglePauseMenu(false);
+				console.log("Exiting to main menu...");
 				this.onExitToMenu();
+			} else {
+				console.error("No exit callback registered");
 			}
 		});
 		buttonContainer.appendChild(mainMenuButton);
@@ -349,6 +362,7 @@ export class UI {
 	 * Set the callback function for when the exit button is clicked
 	 */
 	public setExitToMenuCallback(callback: () => void): void {
+		console.log("Exit to menu callback registered");
 		this.onExitToMenu = callback;
 	}
 
@@ -418,5 +432,13 @@ export class UI {
 		} else {
 			this.serverIdElement.style.display = "none";
 		}
+	}
+
+	/**
+	 * Set the callback function for resuming the game
+	 */
+	public setResumeGameCallback(callback: () => void): void {
+		console.log("Resume game callback registered");
+		this.onResumeGame = callback;
 	}
 }
