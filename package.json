@@ -7,15 +7,18 @@
 		"dev": "vite",
 		"build": "tsc && vite build",
 		"build:dangerous": "vite build",
-		"preview": "vite preview"
+		"preview": "vite preview",
+		"generate:types": "export $(grep -v '^#' .env | xargs) && bunx supabase gen types typescript --project-id $PROJECT_ID > src/supabase.types.ts"
 	},
 	"devDependencies": {
 		"@biomejs/biome": "1.9.4",
 		"@types/three": "^0.174.0",
+		"dotenv-cli": "^8.0.0",
 		"typescript": "~5.7.2",
 		"vite": "^6.2.0"
 	},
 	"dependencies": {
+		"@supabase/supabase-js": "^2.49.1",
 		"peerjs": "^1.5.4",
 		"three": "^0.174.0"
 	}
