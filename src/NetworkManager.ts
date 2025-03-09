@@ -80,13 +80,23 @@ export class NetworkManager {
 	}
 
 	// Initialize as a host - generates a peerID that can be shared
-	public initAsHost(): Promise<string> {
+	public initAsHost(customId?: string): Promise<string> {
 		return new Promise((resolve, reject) => {
 			this.isHost = true;
 
-			// Generate a random peer ID with readable characters
-			const randomId = Math.random().toString(36).substring(2, 8);
-			this.peer = new Peer(`noobskater-${randomId}`);
+			let peerId: string;
+			if (customId) {
+				// Use the provided ID (e.g., Supabase server ID)
+				peerId = customId;
+				console.log("Using custom ID for host:", peerId);
+			} else {
+				// Generate a random peer ID with readable characters
+				const randomId = Math.random().toString(36).substring(2, 8);
+				peerId = `noobskater-${randomId}`;
+				console.log("Generated random ID for host:", peerId);
+			}
+			
+			this.peer = new Peer(peerId);
 
 			this.peer.on("open", (id) => {
 				console.log("Host initialized with ID:", id);

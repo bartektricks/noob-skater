@@ -54,6 +54,11 @@ export class Game {
 	private networkUpdateRate = 30; // 33 updates per second
 	private peer: { id: string } | null = null; // Store our own peer ID
 
+	// Server properties
+	private isOnlineMode = false;
+	private serverId: string | null = null;
+	private serverName: string | null = null;
+
 	// Add a property to store connection code
 	private hostConnectionCode = "";
 
@@ -125,7 +130,7 @@ export class Game {
 		this.clock = new THREE.Clock();
 
 		// Create game menu
-		this.gameMenu = new GameMenu(this.startGame.bind(this));
+		this.gameMenu = new GameMenu((options) => this.startGame(options));
 
 		// Add event listeners
 		window.addEventListener("resize", this.onWindowResize.bind(this));
@@ -213,19 +218,22 @@ export class Game {
 	/**
 	 * Return to the main menu, resetting the game state
 	 */
-	private returnToMainMenu(): void {
+	private async returnToMainMenu(): Promise<void> {
 		// Hide pause menu if it's open
 		this.ui.togglePauseMenu(false);
 
 		// Stop the game
 		this.isGameRunning = false;
+		
+		// Clean up the online server if needed
+		await this.cleanupOnlineServer();
 
 		// Reset skateboard position and rotation
 		this.skateboard.mesh.position.set(0, 0, 5);
 		this.skateboard.mesh.rotation.set(0, 0, 0);
-
 		this.skateboard.mesh.visible = false;
 
+		// Clear remote players
 		if (this.remotePlayers.size > 0) {
 			for (const player of this.remotePlayers.values()) {
 				if (player.skateboard?.mesh) {
@@ -236,13 +244,27 @@ export class Game {
 		}
 
 		// Clean up multiplayer if needed
-		if (this.isMultiplayer && this.networkManager) {
+		if (this.networkManager) {
 			// Disconnect from peer
 			this.networkManager.disconnect();
-			this.isMultiplayer = false;
-			this.isHost = false;
-			this.hostConnectionCode = "";
+			this.networkManager = null;
 		}
+		
+		// Reset multiplayer state
+		this.isMultiplayer = false;
+		this.isHost = false;
+		this.hostConnectionCode = "";
+		this.peer = null;
+
+		// Reset server state
+		this.isOnlineMode = false;
+		this.serverId = null;
+		this.serverName = null;
+
+		// Reset UI
+		this.ui.updateConnectedPlayers(0, []);
+		this.ui.showConnectionStatus("disconnected");
+		this.ui.setServerIdInPauseMenu(null);
 
 		// Reset camera
 		this.cameraManager.reset();
@@ -250,6 +272,25 @@ export class Game {
 		// Reset the game menu to its initial state and show it
 		this.gameMenu.resetToInitialState();
 		this.gameMenu.show();
+	}
+	
+	private async cleanupOnlineServer(): Promise<void> {
+		// Only cleanup if we were in online mode, were the host, and have a server ID
+		if (this.isOnlineMode && this.isHost && this.serverId) {
+			try {
+				// Import dynamically to avoid circular dependencies
+				const { removeServer } = await import('./supabase');
+				const success = await removeServer(this.serverId);
+				
+				if (success) {
+					console.log("Successfully removed server from database:", this.serverId);
+				} else {
+					console.warn("Failed to remove server from database:", this.serverId);
+				}
+			} catch (error) {
+				console.error("Error removing server from database:", error);
+			}
+		}
 	}
 
 	// Start the game
@@ -266,6 +307,11 @@ export class Game {
 			// New game start
 			this.playerNickname = options.nickname;
 			this.isGameRunning = true;
+			
+			// Set server properties
+			this.isOnlineMode = options.isOnlineMode;
+			this.serverName = options.serverName || null;
+			this.serverId = options.serverId || null;
 
 			// Initialize multiplayer
 			this.setupMultiplayer(options);
@@ -275,6 +321,11 @@ export class Game {
 
 			// Start the clock
 			this.clock.start();
+			
+			// If we're in online mode and have a server ID, set it in the UI
+			if (this.isOnlineMode && this.serverId) {
+				this.ui.setServerIdInPauseMenu(this.serverId);
+			}
 		} else {
 			// Just resuming - simply set the running flag
 			this.isGameRunning = true;
@@ -286,6 +337,18 @@ export class Game {
 		this.isHost = options.peerRole === "host";
 
 		console.log("Setting up multiplayer as:", this.isHost ? "HOST" : "CLIENT");
+		
+		if (this.isOnlineMode) {
+			console.log("Online mode:", this.isHost ? "Creating server" : "Joining server");
+			if (this.serverName) {
+				console.log("Server name:", this.serverName);
+			}
+			if (this.serverId) {
+				console.log("Server ID:", this.serverId);
+			}
+		} else {
+			console.log("Offline mode");
+		}
 
 		// Update UI to show connecting status
 		this.ui.showConnectionStatus("connecting");
@@ -445,8 +508,16 @@ export class Game {
 		if (this.isHost) {
 			// Initialize as host
 			console.log("Initializing as host...");
+			
+			// If in online mode and we have a server ID, use it as the peer ID
+			const customId = this.isOnlineMode && this.serverId ? this.serverId : undefined;
+			
+			if (customId) {
+				console.log("Using Supabase server ID as peer ID:", customId);
+			}
+			
 			this.networkManager
-				.initAsHost()
+				.initAsHost(customId)
 				.then((id) => {
 					// Store the connection code for displaying in the pause menu
 					this.hostConnectionCode = id;

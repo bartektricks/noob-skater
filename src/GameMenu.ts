@@ -3,6 +3,9 @@ export interface GameStartOptions {
 	isMultiplayer: boolean;
 	peerRole: "host" | "client";
 	peerCode?: string;
+	serverName?: string;
+	serverId?: string;
+	isOnlineMode: boolean;
 }
 
 export class GameMenu {
@@ -19,6 +22,15 @@ export class GameMenu {
 	private peerCodeInput!: HTMLInputElement;
 	private peerCodeDisplay!: HTMLDivElement;
 	private p2pOptionsContainer!: HTMLDivElement;
+	
+	// Server mode elements
+	private onlineModeRadio!: HTMLInputElement;
+	private offlineModeRadio!: HTMLInputElement;
+	private serverNameInput!: HTMLInputElement;
+	private serverListContainer!: HTMLDivElement;
+	private serverModeContainer!: HTMLDivElement;
+	private selectedServerId: string | null = null;
+	private serversLoading = false;
 
 	constructor(private onStartGame: (options: GameStartOptions) => void) {
 		// Create menu element
@@ -46,163 +58,352 @@ export class GameMenu {
 
 		// Title
 		const title = document.createElement("h1");
-		title.textContent = "Noob Skater P2P";
+		title.textContent = "Noob Skater";
 		form.appendChild(title);
-
-		// Subtitle
-		const subtitle = document.createElement("p");
-		subtitle.textContent = "Peer-to-Peer Multiplayer Skateboarding";
-		subtitle.style.marginBottom = "20px";
-		form.appendChild(subtitle);
 
 		// Nickname field
 		const nicknameGroup = document.createElement("div");
 		nicknameGroup.className = "form-group";
 
 		const nicknameLabel = document.createElement("label");
-		nicknameLabel.textContent = "Your Nickname:";
-		nicknameLabel.htmlFor = "nickname-input";
+		nicknameLabel.htmlFor = "nickname";
+		nicknameLabel.textContent = "Nickname:";
+		nicknameGroup.appendChild(nicknameLabel);
 
 		this.nicknameInput = document.createElement("input");
-		this.nicknameInput.id = "nickname-input";
 		this.nicknameInput.type = "text";
-		this.nicknameInput.maxLength = 20;
-		this.nicknameInput.required = true;
+		this.nicknameInput.id = "nickname";
+		this.nicknameInput.name = "nickname";
 		this.nicknameInput.placeholder = "Enter your nickname";
-
-		nicknameGroup.appendChild(nicknameLabel);
+		this.nicknameInput.required = true;
+		this.nicknameInput.maxLength = 15;
 		nicknameGroup.appendChild(this.nicknameInput);
+
 		form.appendChild(nicknameGroup);
 
-		// P2P Options Container
-		this.p2pOptionsContainer = document.createElement("div");
-		this.p2pOptionsContainer.id = "p2p-options";
-
-		// Connection type section
-		const connectionSection = document.createElement("div");
-		connectionSection.className = "connection-section";
-
-		const connectionTitle = document.createElement("h3");
-		connectionTitle.textContent = "Connection Type";
-		connectionSection.appendChild(connectionTitle);
-
-		// Host option
-		const hostContainer = document.createElement("div");
-		hostContainer.className = "option-row";
-
+		// Game Mode Selection
+		const gameModeGroup = document.createElement("div");
+		gameModeGroup.className = "form-group";
+		
+		const gameModeLabel = document.createElement("div");
+		gameModeLabel.className = "group-label";
+		gameModeLabel.textContent = "Game Mode:";
+		gameModeGroup.appendChild(gameModeLabel);
+		
+		// Online Mode option
+		const onlineModeContainer = document.createElement("div");
+		onlineModeContainer.className = "radio-container";
+		
+		this.onlineModeRadio = document.createElement("input");
+		this.onlineModeRadio.type = "radio";
+		this.onlineModeRadio.id = "online-mode";
+		this.onlineModeRadio.name = "game-mode";
+		this.onlineModeRadio.checked = true;
+		
+		const onlineModeLabel = document.createElement("label");
+		onlineModeLabel.htmlFor = "online-mode";
+		onlineModeLabel.textContent = "Online";
+		
+		onlineModeContainer.appendChild(this.onlineModeRadio);
+		onlineModeContainer.appendChild(onlineModeLabel);
+		gameModeGroup.appendChild(onlineModeContainer);
+		
+		// Offline Mode option
+		const offlineModeContainer = document.createElement("div");
+		offlineModeContainer.className = "radio-container";
+		
+		this.offlineModeRadio = document.createElement("input");
+		this.offlineModeRadio.type = "radio";
+		this.offlineModeRadio.id = "offline-mode";
+		this.offlineModeRadio.name = "game-mode";
+		
+		const offlineModeLabel = document.createElement("label");
+		offlineModeLabel.htmlFor = "offline-mode";
+		offlineModeLabel.textContent = "Offline";
+		
+		offlineModeContainer.appendChild(this.offlineModeRadio);
+		offlineModeContainer.appendChild(offlineModeLabel);
+		gameModeGroup.appendChild(offlineModeContainer);
+		
+		form.appendChild(gameModeGroup);
+		
+		// Server Mode Options (visible only when online mode is selected)
+		this.serverModeContainer = document.createElement("div");
+		this.serverModeContainer.className = "form-group";
+		this.serverModeContainer.id = "server-mode-container";
+		
+		const serverModeLabel = document.createElement("div");
+		serverModeLabel.className = "group-label";
+		serverModeLabel.textContent = "Server Options:";
+		this.serverModeContainer.appendChild(serverModeLabel);
+		
+		// Create New Server option
+		const createServerContainer = document.createElement("div");
+		createServerContainer.className = "radio-container";
+		
 		this.hostRoleRadio = document.createElement("input");
-		this.hostRoleRadio.id = "host-radio";
 		this.hostRoleRadio.type = "radio";
-		this.hostRoleRadio.name = "p2p-role";
-		this.hostRoleRadio.value = "host";
+		this.hostRoleRadio.id = "host-role";
+		this.hostRoleRadio.name = "peer-role";
 		this.hostRoleRadio.checked = true;
-
-		const hostLabel = document.createElement("label");
-		hostLabel.textContent = "Create Game (Host)";
-		hostLabel.htmlFor = "host-radio";
-
-		hostContainer.appendChild(this.hostRoleRadio);
-		hostContainer.appendChild(hostLabel);
-		connectionSection.appendChild(hostContainer);
-
-		// Client option
-		const clientContainer = document.createElement("div");
-		clientContainer.className = "option-row";
-
+		
+		const createServerLabel = document.createElement("label");
+		createServerLabel.htmlFor = "host-role";
+		createServerLabel.textContent = "Create New Server";
+		
+		createServerContainer.appendChild(this.hostRoleRadio);
+		createServerContainer.appendChild(createServerLabel);
+		this.serverModeContainer.appendChild(createServerContainer);
+		
+		// Server name input (visible when creating a new server)
+		const serverNameGroup = document.createElement("div");
+		serverNameGroup.className = "form-group indent";
+		serverNameGroup.id = "server-name-group";
+		
+		const serverNameLabel = document.createElement("label");
+		serverNameLabel.htmlFor = "server-name";
+		serverNameLabel.textContent = "Server Name:";
+		serverNameGroup.appendChild(serverNameLabel);
+		
+		this.serverNameInput = document.createElement("input");
+		this.serverNameInput.type = "text";
+		this.serverNameInput.id = "server-name";
+		this.serverNameInput.name = "server-name";
+		this.serverNameInput.placeholder = "Enter server name";
+		this.serverNameInput.maxLength = 30;
+		serverNameGroup.appendChild(this.serverNameInput);
+		
+		this.serverModeContainer.appendChild(serverNameGroup);
+		
+		// Join Existing Server option
+		const joinServerContainer = document.createElement("div");
+		joinServerContainer.className = "radio-container";
+		
 		this.clientRoleRadio = document.createElement("input");
-		this.clientRoleRadio.id = "client-radio";
 		this.clientRoleRadio.type = "radio";
-		this.clientRoleRadio.name = "p2p-role";
-		this.clientRoleRadio.value = "client";
-
-		const clientLabel = document.createElement("label");
-		clientLabel.textContent = "Join Game (Client)";
-		clientLabel.htmlFor = "client-radio";
-
-		clientContainer.appendChild(this.clientRoleRadio);
-		clientContainer.appendChild(clientLabel);
-		connectionSection.appendChild(clientContainer);
-
-		this.p2pOptionsContainer.appendChild(connectionSection);
-
-		// Peer connection code field
-		const codeGroup = document.createElement("div");
-		codeGroup.className = "form-group";
-		codeGroup.id = "connection-code-group";
-		codeGroup.style.display = "none"; // Hidden by default (only shown for client)
-
-		const codeLabel = document.createElement("label");
-		codeLabel.textContent = "Connection Code:";
-		codeLabel.htmlFor = "peer-code-input";
-
+		this.clientRoleRadio.id = "client-role";
+		this.clientRoleRadio.name = "peer-role";
+		
+		const joinServerLabel = document.createElement("label");
+		joinServerLabel.htmlFor = "client-role";
+		joinServerLabel.textContent = "Join Existing Server";
+		
+		joinServerContainer.appendChild(this.clientRoleRadio);
+		joinServerContainer.appendChild(joinServerLabel);
+		this.serverModeContainer.appendChild(joinServerContainer);
+		
+		// Server list container (visible when joining an existing server)
+		this.serverListContainer = document.createElement("div");
+		this.serverListContainer.className = "server-list-container indent";
+		this.serverListContainer.id = "server-list-container";
+		this.serverListContainer.style.display = "none";
+		
+		const serverListTitle = document.createElement("div");
+		serverListTitle.className = "server-list-title";
+		serverListTitle.textContent = "Available Servers:";
+		this.serverListContainer.appendChild(serverListTitle);
+		
+		const serverList = document.createElement("div");
+		serverList.className = "server-list";
+		serverList.id = "server-list";
+		this.serverListContainer.appendChild(serverList);
+		
+		const refreshButton = document.createElement("button");
+		refreshButton.type = "button";
+		refreshButton.className = "refresh-button";
+		refreshButton.textContent = "Refresh Server List";
+		refreshButton.onclick = () => this.refreshServerList();
+		this.serverListContainer.appendChild(refreshButton);
+		
+		this.serverModeContainer.appendChild(this.serverListContainer);
+		
+		// Connection code input for direct p2p connection
+		const connectionCodeGroup = document.createElement("div");
+		connectionCodeGroup.className = "form-group indent";
+		connectionCodeGroup.id = "connection-code-group";
+		connectionCodeGroup.style.display = "none";
+		
+		const connectionCodeLabel = document.createElement("label");
+		connectionCodeLabel.htmlFor = "connection-code";
+		connectionCodeLabel.textContent = "Direct P2P Connection Code:";
+		connectionCodeGroup.appendChild(connectionCodeLabel);
+		
 		this.peerCodeInput = document.createElement("input");
-		this.peerCodeInput.id = "peer-code-input";
 		this.peerCodeInput.type = "text";
-		this.peerCodeInput.placeholder = "Enter host's code";
-
-		codeGroup.appendChild(codeLabel);
-		codeGroup.appendChild(this.peerCodeInput);
-		this.p2pOptionsContainer.appendChild(codeGroup);
-
-		// Peer code display (for host)
+		this.peerCodeInput.id = "connection-code";
+		this.peerCodeInput.name = "connection-code";
+		this.peerCodeInput.placeholder = "Enter connection code";
+		connectionCodeGroup.appendChild(this.peerCodeInput);
+		
+		this.serverModeContainer.appendChild(connectionCodeGroup);
+		
+		// Peer code display for hosts
 		this.peerCodeDisplay = document.createElement("div");
-		this.peerCodeDisplay.id = "peer-code-display";
-		this.peerCodeDisplay.innerHTML =
-			"<p>Your connection code will appear here after starting</p>";
-		this.p2pOptionsContainer.appendChild(this.peerCodeDisplay);
-
-		// Add role change handlers
-		this.hostRoleRadio.addEventListener("change", () =>
-			this.toggleRoleOptions(),
-		);
-		this.clientRoleRadio.addEventListener("change", () =>
-			this.toggleRoleOptions(),
-		);
-
-		form.appendChild(this.p2pOptionsContainer);
-
-		// Start button
+		this.peerCodeDisplay.className = "peer-code-display";
+		this.peerCodeDisplay.style.display = "none";
+		this.serverModeContainer.appendChild(this.peerCodeDisplay);
+		
+		form.appendChild(this.serverModeContainer);
+		
+		// Buttons
+		const buttonGroup = document.createElement("div");
+		buttonGroup.className = "form-group button-group";
+		
 		this.startButton = document.createElement("button");
 		this.startButton.type = "submit";
-		this.startButton.className = "menu-button";
 		this.startButton.textContent = "Start Game";
-		form.appendChild(this.startButton);
-
-		// Resume button (hidden initially)
+		buttonGroup.appendChild(this.startButton);
+		
 		this.resumeButton = document.createElement("button");
+		this.resumeButton.type = "button";
 		this.resumeButton.textContent = "Resume Game";
-		this.resumeButton.className = "menu-button";
 		this.resumeButton.style.display = "none";
-		this.resumeButton.addEventListener("click", () => this.resumeGame());
-
+		this.resumeButton.onclick = () => this.resumeGame();
+		buttonGroup.appendChild(this.resumeButton);
+		
+		form.appendChild(buttonGroup);
+		
 		this.menuContainer.appendChild(form);
-		this.menuContainer.appendChild(this.resumeButton);
 		this.menuElement.appendChild(this.menuContainer);
-
-		// Add to document
 		document.body.appendChild(this.menuElement);
+		
+		// Set up event listeners
+		this.hostRoleRadio.addEventListener("change", () => this.toggleServerOptions());
+		this.clientRoleRadio.addEventListener("change", () => this.toggleServerOptions());
+		this.onlineModeRadio.addEventListener("change", () => this.toggleGameModeOptions());
+		this.offlineModeRadio.addEventListener("change", () => this.toggleGameModeOptions());
+		
+		// Initialize options display
+		this.toggleGameModeOptions();
 	}
 
-	private toggleRoleOptions(): void {
-		if (this.hostRoleRadio.checked) {
-			const connectionCodeGroup = document.getElementById(
-				"connection-code-group",
-			);
+	private toggleGameModeOptions(): void {
+		if (this.onlineModeRadio.checked) {
+			this.serverModeContainer.style.display = "block";
+			this.toggleServerOptions(); // Update server options based on current selection
+		} else {
+			this.serverModeContainer.style.display = "none";
+		}
+	}
 
+	private toggleServerOptions(): void {
+		// Only relevant when online mode is selected
+		if (!this.onlineModeRadio.checked) return;
+		
+		const serverNameGroup = document.getElementById("server-name-group");
+		const connectionCodeGroup = document.getElementById("connection-code-group");
+		
+		if (this.hostRoleRadio.checked) {
+			// Create server mode
+			if (serverNameGroup) {
+				serverNameGroup.style.display = "block";
+			}
 			if (connectionCodeGroup) {
 				connectionCodeGroup.style.display = "none";
 			}
-
-			this.peerCodeDisplay.style.display = "block";
+			this.serverListContainer.style.display = "none";
+			this.peerCodeDisplay.style.display = "none";
 		} else {
-			const connectionCodeGroup = document.getElementById(
-				"connection-code-group",
-			);
+			// Join server mode
+			if (serverNameGroup) {
+				serverNameGroup.style.display = "none";
+			}
+			this.serverListContainer.style.display = "block";
+			
+			// Load server list
+			this.refreshServerList();
+			
+			// Show connection code input for direct p2p
 			if (connectionCodeGroup) {
 				connectionCodeGroup.style.display = "block";
 			}
-			this.peerCodeDisplay.style.display = "none";
 		}
+	}
+
+	private async refreshServerList(): Promise<void> {
+		if (this.serversLoading) return;
+		
+		this.serversLoading = true;
+		const serverList = document.getElementById("server-list");
+		if (!serverList) return;
+		
+		serverList.innerHTML = '<div class="loading-message">Loading servers...</div>';
+		
+		try {
+			// Import dynamically to avoid circular dependencies
+			const { getActiveServers } = await import('./supabase');
+			const servers = await getActiveServers();
+			
+			serverList.innerHTML = '';
+			
+			if (servers.length === 0) {
+				serverList.innerHTML = '<div class="no-servers-message">No active servers found</div>';
+				this.serversLoading = false;
+				return;
+			}
+			
+			// Create a server entry for each server
+			for (const server of servers) {
+				const serverEntry = document.createElement("div");
+				serverEntry.className = "server-entry";
+				serverEntry.dataset.id = server.id;
+				if (this.selectedServerId === server.id) {
+					serverEntry.classList.add("selected");
+				}
+				
+				const serverName = document.createElement("div");
+				serverName.className = "server-name";
+				serverName.textContent = server.server_name || "Unnamed Server";
+				
+				const serverTime = document.createElement("div");
+				serverTime.className = "server-time";
+				serverTime.textContent = this.formatServerTime(server.created_at);
+				
+				serverEntry.appendChild(serverName);
+				serverEntry.appendChild(serverTime);
+				
+				// Add click event to select server
+				serverEntry.addEventListener("click", () => {
+					// Remove selected class from all server entries
+					const serverEntries = document.querySelectorAll(".server-entry");
+					for (const entry of serverEntries) {
+						entry.classList.remove("selected");
+					}
+					
+					// Add selected class to this server entry
+					serverEntry.classList.add("selected");
+					this.selectedServerId = server.id;
+				});
+				
+				serverList.appendChild(serverEntry);
+			}
+		} catch (error) {
+			console.error("Failed to load servers:", error);
+			serverList.innerHTML = '<div class="error-message">Failed to load servers</div>';
+		}
+		
+		this.serversLoading = false;
+	}
+	
+	private formatServerTime(dateString: string): string {
+		const date = new Date(dateString);
+		const now = new Date();
+		const diffMs = now.getTime() - date.getTime();
+		const diffMins = Math.floor(diffMs / 60000);
+		
+		if (diffMins < 1) {
+			return 'Just now';
+		}
+		
+		if (diffMins < 60) {
+			return `${diffMins} min ago`;
+		}
+		
+		if (diffMins < 1440) {
+			return `${Math.floor(diffMins / 60)} hr ago`;
+		}
+		
+		return `${Math.floor(diffMins / 1440)} days ago`;
 	}
 
 	// Set the peer code in the display (called after host generates code)
@@ -210,39 +411,80 @@ export class GameMenu {
 		this.peerCodeDisplay.innerHTML = `
       <div class="code-box">${code}</div>
     `;
+		this.peerCodeDisplay.style.display = "block";
 	}
 
-	private startGame(): void {
+	private async startGame(): Promise<void> {
 		if (!this.nicknameInput.value.trim()) {
 			alert("Please enter a nickname!");
 			return;
 		}
-
-		// Validate peer code if client mode is selected
-		if (this.clientRoleRadio.checked && !this.peerCodeInput.value.trim()) {
-			alert("Please enter a connection code to join a game!");
-			return;
+		
+		const isOnlineMode = this.onlineModeRadio.checked;
+		
+		if (isOnlineMode) {
+			if (this.hostRoleRadio.checked) {
+				// Create server mode
+				if (!this.serverNameInput.value.trim()) {
+					alert("Please enter a server name!");
+					return;
+				}
+			} else {
+				// Join server mode
+				// Check if a server is selected or direct connection code is provided
+				if (!this.selectedServerId && !this.peerCodeInput.value.trim()) {
+					alert("Please select a server or enter a direct connection code!");
+					return;
+				}
+			}
 		}
-
+		
+		let serverId: string | undefined = undefined;
+		
+		// If creating a new server in online mode, register it with Supabase
+		if (isOnlineMode && this.hostRoleRadio.checked && this.serverNameInput.value.trim()) {
+			try {
+				// Import dynamically to avoid circular dependencies
+				const { addServer } = await import('./supabase');
+				serverId = await addServer(this.serverNameInput.value.trim()) || undefined;
+				
+				if (!serverId) {
+					console.warn("Failed to register server, continuing without server registration");
+				}
+			} catch (error) {
+				console.error("Error registering server:", error);
+			}
+		}
+		
+		// When joining a server, use the server ID as the peer code
+		let peerCode: string | undefined = undefined;
+		if (this.clientRoleRadio.checked) {
+			if (this.selectedServerId) {
+				// Use selected server ID as peer code when joining from server list
+				peerCode = this.selectedServerId;
+				console.log("Using server ID as peer code:", peerCode);
+			} else if (this.peerCodeInput.value.trim()) {
+				// Use manual peer code input if provided
+				peerCode = this.peerCodeInput.value.trim();
+				console.log("Using manual peer code:", peerCode);
+			}
+		}
+		
 		const options: GameStartOptions = {
 			nickname: this.nicknameInput.value.trim(),
 			isMultiplayer: true,
 			peerRole: this.hostRoleRadio.checked ? "host" : "client",
-			peerCode: this.clientRoleRadio.checked
-				? this.peerCodeInput.value.trim()
-				: undefined,
+			isOnlineMode,
+			peerCode,
+			serverName: this.hostRoleRadio.checked ? this.serverNameInput.value.trim() : undefined,
+			serverId: this.clientRoleRadio.checked ? this.selectedServerId || undefined : serverId
 		};
-
-		// Hide the menu for both host and client
+		
+		// Hide the menu
 		this.hide();
-
+		
 		// Start the game
 		this.onStartGame(options);
-
-		// After first start, allow resuming
-		if (this.isInitialStart) {
-			this.isInitialStart = false;
-		}
 	}
 
 	private resumeGame(): void {
@@ -253,6 +495,7 @@ export class GameMenu {
 			nickname: this.nicknameInput.value || "Player",
 			isMultiplayer: true,
 			peerRole: "host", // Default role doesn't matter for resuming
+			isOnlineMode: false // Default to false when resuming
 		};
 
 		this.onStartGame(options);
@@ -260,72 +503,12 @@ export class GameMenu {
 
 	public show(): void {
 		this.menuElement.style.display = "flex";
-
-		if (!this.isInitialStart) {
-			// After first game has started, show pause menu
-			const form = this.menuContainer.querySelector("form");
-
-			if (form) {
-				form.style.display = "none";
-			}
-
-			// Create or update the resume button
-			if (!this.resumeButton.classList.contains("resume-button")) {
-				this.resumeButton.classList.add("resume-button");
-				this.resumeButton.textContent = "RESUME GAME";
-			}
-			this.resumeButton.style.display = "block";
-
-			// Create pause menu title if it doesn't exist
-			let pauseTitle = document.getElementById("pause-menu-title");
-			if (!pauseTitle) {
-				pauseTitle = document.createElement("h2");
-				pauseTitle.id = "pause-menu-title";
-				pauseTitle.textContent = "GAME PAUSED";
-				this.menuContainer.insertBefore(
-					pauseTitle,
-					this.menuContainer.firstChild,
-				);
-			}
-			pauseTitle.style.display = "block";
-
-			// Create or update connection info container
-			let connectionInfoContainer = document.getElementById(
-				"connection-info-container",
-			);
-			if (!connectionInfoContainer) {
-				connectionInfoContainer = document.createElement("div");
-				connectionInfoContainer.id = "connection-info-container";
-				connectionInfoContainer.className = "connection-info-container";
-				this.menuContainer.appendChild(connectionInfoContainer);
-			}
-
-			// If there's a peer code in the peerCodeDisplay, show it in the connection info
-			if (this.peerCodeDisplay.innerHTML.includes("code-box")) {
-				connectionInfoContainer.innerHTML = `
-          <h3>Your Connection Code</h3>
-          ${this.peerCodeDisplay.innerHTML}
-          <p class="info-text">Share this code with another player to let them join your game.</p>
-        `;
-				connectionInfoContainer.style.display = "block";
-			} else {
-				connectionInfoContainer.style.display = "none";
-			}
-		} else {
-			// First time showing menu, display normal options
-			const form = this.menuContainer.querySelector("form");
-
-			if (form) {
-				form.style.display = "block";
-			}
-			this.resumeButton.style.display = "none";
-
-			// Hide the pause title if it exists
-			const pauseTitle = document.getElementById("pause-menu-title");
-			if (pauseTitle) {
-				pauseTitle.style.display = "none";
-			}
-		}
+		this.addStyles();
+		
+		// Focus nickname input
+		setTimeout(() => {
+			this.nicknameInput.focus();
+		}, 100);
 	}
 
 	public hide(): void {
@@ -420,46 +603,118 @@ export class GameMenu {
 		}
 
 		// Re-apply the toggle to hide/show appropriate elements
-		this.toggleRoleOptions();
+		this.toggleServerOptions();
 	}
 
 	// Add this method to reset the menu to its initial state
 	public resetToInitialState(): void {
-		// Reset to show the full initial menu
-		this.isInitialStart = true;
-
-		// Reset the form display
-		const form = this.menuContainer.querySelector("form");
-
-		if (!form) return;
-
-		form.style.display = "block";
-
-		// Hide the resume button
-		this.resumeButton.style.display = "none";
-
-		// Hide the pause title if it exists
-		const pauseTitle = document.getElementById("pause-menu-title");
-		if (pauseTitle) {
-			pauseTitle.style.display = "none";
-		}
-
-		// Reset connection info
-		const connectionInfoContainer = document.getElementById(
-			"connection-info-container",
-		);
-		if (connectionInfoContainer) {
-			connectionInfoContainer.style.display = "none";
-		}
-
-		// Clear the peer code
-		this.peerCodeDisplay.innerHTML =
-			"<p>Your connection code will appear here after starting</p>";
-
-		// Make sure all normal form elements are visible
-		this.resetMenuDisplay();
-
-		// Reset peer code input
+		// Reset form fields
+		this.nicknameInput.value = "";
+		this.serverNameInput.value = "";
 		this.peerCodeInput.value = "";
+		this.peerCodeDisplay.innerHTML = "";
+		this.peerCodeDisplay.style.display = "none";
+		this.selectedServerId = null;
+		
+		// Reset radio buttons
+		this.onlineModeRadio.checked = true;
+		this.offlineModeRadio.checked = false;
+		this.hostRoleRadio.checked = true;
+		this.clientRoleRadio.checked = false;
+		
+		// Reset display
+		this.toggleGameModeOptions();
+		
+		// Show the menu in initial state
+		this.resetMenuDisplay();
+		
+		// Show the menu
+		this.show();
+	}
+
+	// Add custom CSS styles for the server list
+	private addStyles(): void {
+		const styleElement = document.createElement("style");
+		styleElement.textContent = `
+			.server-list-container {
+				margin-top: 10px;
+				max-height: 200px;
+				overflow-y: auto;
+				border: 1px solid #444;
+				border-radius: 4px;
+				background-color: rgba(0, 0, 0, 0.2);
+			}
+			
+			.server-list-title {
+				padding: 8px;
+				font-weight: bold;
+				border-bottom: 1px solid #444;
+			}
+			
+			.server-list {
+				max-height: 150px;
+				overflow-y: auto;
+			}
+			
+			.server-entry {
+				padding: 8px;
+				border-bottom: 1px solid #333;
+				cursor: pointer;
+				display: flex;
+				justify-content: space-between;
+				transition: background-color 0.2s;
+			}
+			
+			.server-entry:hover {
+				background-color: rgba(255, 255, 255, 0.1);
+			}
+			
+			.server-entry.selected {
+				background-color: rgba(0, 100, 255, 0.3);
+			}
+			
+			.server-name {
+				font-weight: bold;
+			}
+			
+			.server-time {
+				color: #aaa;
+				font-size: 0.9em;
+			}
+			
+			.no-servers-message, .loading-message, .error-message {
+				padding: 15px;
+				text-align: center;
+				color: #aaa;
+			}
+			
+			.error-message {
+				color: #ff6b6b;
+			}
+			
+			.refresh-button {
+				width: 100%;
+				padding: 8px;
+				background-color: rgba(0, 100, 255, 0.2);
+				border: 1px solid #444;
+				color: white;
+				cursor: pointer;
+				transition: background-color 0.2s;
+			}
+			
+			.refresh-button:hover {
+				background-color: rgba(0, 100, 255, 0.4);
+			}
+			
+			.indent {
+				margin-left: 20px;
+				margin-top: 5px;
+			}
+			
+			.form-group.button-group {
+				margin-top: 20px;
+			}
+		`;
+		document.head.appendChild(styleElement);
 	}
 }

@@ -364,8 +364,46 @@ export class UI {
 	 */
 	public setServerIdInPauseMenu(serverId: string | null): void {
 		if (serverId) {
-			this.serverIdElement.textContent = `Server ID: ${serverId}`;
+			this.serverIdElement.innerHTML = `
+				<div class="server-info-title">Online Server</div>
+				<div class="server-info-id">ID: ${serverId}</div>
+				<div class="server-info-text">Players must use this ID to join your game</div>
+				<div class="server-info-help">Share this ID or let others find your server in the server list</div>
+			`;
 			this.serverIdElement.style.display = "block";
+			
+			// Add extra styling for better visibility
+			if (!document.getElementById('server-info-styles')) {
+				const styleElement = document.createElement('style');
+				styleElement.id = 'server-info-styles';
+				styleElement.textContent = `
+					.server-info-title {
+						font-weight: bold;
+						font-size: 16px;
+						margin-bottom: 5px;
+						color: #4CAF50;
+					}
+					.server-info-id {
+						font-family: monospace;
+						background-color: rgba(0, 0, 0, 0.3);
+						padding: 5px 8px;
+						border-radius: 4px;
+						margin-bottom: 8px;
+						font-size: 14px;
+						word-break: break-all;
+					}
+					.server-info-text {
+						font-size: 13px;
+						margin-bottom: 5px;
+						font-weight: bold;
+					}
+					.server-info-help {
+						font-size: 12px;
+						opacity: 0.8;
+					}
+				`;
+				document.head.appendChild(styleElement);
+			}
 		} else {
 			this.serverIdElement.style.display = "none";
 		}
