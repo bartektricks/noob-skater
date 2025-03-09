@@ -377,6 +377,36 @@ export class Game {
 					this.ui.updateConnectedPlayers(peers.length, peers);
 				}
 			},
+			
+			onHostTakeover: (hostId) => {
+				console.log(`Successfully took over as host with ID: ${hostId}`);
+				
+				// Update state to reflect we're now the host
+				this.isHost = true;
+				this.hostConnectionCode = hostId;
+				
+				// Store our peer ID as the host
+				this.peer = { id: hostId };
+				
+				// Update the UI
+				this.ui.showNotification("Host unavailable. You are now the host!");
+				
+				// If we have a server name, keep it; otherwise generate a generic one
+				if (!this.serverName) {
+					this.serverName = "Inherited Server";
+				}
+				
+				// Update the server ID in the UI with the takeover flag
+				if (this.isOnlineMode && this.serverId) {
+					this.ui.setServerIdInPauseMenu(this.serverId, true);
+				} else if (hostId) {
+					this.serverId = hostId;
+					this.ui.setServerIdInPauseMenu(hostId, true);
+				}
+				
+				// Initialize player list with empty array
+				this.ui.updateConnectedPlayers(0, []);
+			},
 
 			onDisconnected: (peerId) => {
 				if (peerId) {
@@ -543,12 +573,17 @@ export class Game {
 			this.networkManager
 				.connectToHost(options.peerCode)
 				.then(() => {
-					console.log("Connected to host");
-					this.ui.showNotification("Connected to game host!");
+					if (this.networkManager?.getIsHost()) {
+						// If we became the host through takeover, don't show the "connected" message
+						console.log("Connected as new host after takeover");
+					} else {
+						console.log("Connected to host");
+						this.ui.showNotification("Connected to game host!");
+					}
 				})
 				.catch((err) => {
 					console.error("Failed to connect to host:", err);
-					this.ui.showNotification("Failed to connect to host");
+					this.ui.showNotification(`Failed to connect: ${err.message || "unknown error"}`);
 					this.ui.showConnectionStatus("disconnected");
 				});
 		} else {

@@ -361,14 +361,25 @@ export class UI {
 
 	/**
 	 * Display the server ID in the pause menu
+	 * @param serverId The server ID to display
+	 * @param isTakeover Whether this server was taken over from a previous host
 	 */
-	public setServerIdInPauseMenu(serverId: string | null): void {
+	public setServerIdInPauseMenu(serverId: string | null, isTakeover = false): void {
 		if (serverId) {
+			// Different message for takeover vs. original host
+			const titleText = isTakeover 
+				? "Online Server (Taken Over)"
+				: "Online Server";
+				
+			const helpText = isTakeover
+				? "You've taken over as host because the original host disconnected. Others can still join your server."
+				: "Share this ID or let others find your server in the server list";
+				
 			this.serverIdElement.innerHTML = `
-				<div class="server-info-title">Online Server</div>
+				<div class="server-info-title">${titleText}</div>
 				<div class="server-info-id">ID: ${serverId}</div>
 				<div class="server-info-text">Players must use this ID to join your game</div>
-				<div class="server-info-help">Share this ID or let others find your server in the server list</div>
+				<div class="server-info-help">${helpText}</div>
 			`;
 			this.serverIdElement.style.display = "block";
 			
@@ -381,7 +392,7 @@ export class UI {
 						font-weight: bold;
 						font-size: 16px;
 						margin-bottom: 5px;
-						color: #4CAF50;
+						color: ${isTakeover ? '#FFA500' : '#4CAF50'};
 					}
 					.server-info-id {
 						font-family: monospace;

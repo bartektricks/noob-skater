@@ -61,6 +61,7 @@ export interface NetworkManagerEvents {
 	onPlayerInputReceived: (input: PlayerInput, peerId: string) => void;
 	onPlayerJoined: (peerId: string) => void;
 	onPlayerLeft: (peerId: string) => void;
+	onHostTakeover: (hostId: string) => void;
 }
 
 export interface RemotePlayer {
@@ -161,16 +162,54 @@ export class NetworkManager {
 
 				connection.on("error", (err) => {
 					console.error("Connection error:", err);
-					this.events.onError(`Connection error: ${err.message || err}`);
-					reject(err);
+					// For error events, we don't reject immediately, we'll try takeover
 				});
 			});
 
+			// Handle peer error - this is called when the host can't be found or connected to
 			this.peer.on("error", (err) => {
 				console.error("PeerJS client error:", err);
-				this.events.onError(`Client error: ${err.message || err}`);
-				reject(err);
+				
+				// Check if this is a connection error to the host (server not found)
+				if (err.type === "peer-unavailable" || err.message?.includes("Could not connect to peer")) {
+					console.log("Host unavailable, attempting to take over as host...");
+					
+					// Clean up the failed client connection
+					this.peer?.destroy();
+					this.peer = null;
+					
+					// Attempt to become the host with the same ID
+					this.attemptHostTakeover(hostId)
+						.then(() => {
+							resolve(); // Connection succeeded as new host
+						})
+						.catch((takoverErr) => {
+							reject(new Error(`Failed to take over as host: ${takoverErr}`));
+						});
+				} else {
+					// For other types of errors, just reject
+					this.events.onError(`Client error: ${err.message || err}`);
+					reject(err);
+				}
 			});
+		});
+	}
+
+	// Attempt to take over as host with the specified ID
+	private attemptHostTakeover(hostId: string): Promise<void> {
+		return new Promise((resolve, reject) => {
+			// Initialize as host with the existing server ID
+			this.initAsHost(hostId)
+				.then((id) => {
+					console.log("Successfully took over as host with ID:", id);
+					this.isHost = true;
+					this.events.onHostTakeover(id);
+					resolve();
+				})
+				.catch((err) => {
+					console.error("Failed to take over as host:", err);
+					reject(err);
+				});
 		});
 	}
 
