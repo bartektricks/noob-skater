@@ -130,7 +130,7 @@ export class Game {
 		this.scene.add(directionalLight);
 
 		// Create ground
-		const groundGeometry = new THREE.PlaneGeometry(100, 100);
+		const groundGeometry = new THREE.PlaneGeometry(500, 500); // 5x bigger (was 100x100)
 		const groundMaterial = new THREE.MeshStandardMaterial({
 			color: 0x1a472a,
 			roughness: 0.8,
@@ -253,7 +253,7 @@ export class Game {
 		await this.cleanupOnlineServer();
 
 		// Reset skateboard position and rotation
-		this.skateboard.mesh.position.set(0, 0, 5);
+		this.skateboard.mesh.position.set(-10, 0, 15);
 		this.skateboard.mesh.rotation.set(0, 0, 0);
 		this.skateboard.mesh.visible = false;
 
@@ -1152,7 +1152,7 @@ export class Game {
 			// Calculate distance to target for each axis separately
 			const horizontalDistance = Math.sqrt(
 				(currentPosition.x - predictedPosition.x) ** 2 +
-					(currentPosition.z - predictedPosition.z) ** 2,
+				(currentPosition.z - predictedPosition.z) ** 2,
 			);
 
 			const verticalDistance = Math.abs(
@@ -1312,25 +1312,18 @@ export class Game {
 
 	// Create rails and add them to the scene
 	private createRails(): void {
-		// Create a long rail straight ahead
-		const rail1 = new Rail(-10, 10, 10, 10);
+		// Clear any existing rails
+		this.rails = [];
+
+
+		// First long rail (positioned along the X axis)
+		const rail1 = new Rail(-40, 20, 40, 20);
 		this.scene.add(rail1.mesh);
 		this.rails.push(rail1);
 
-		// Create a second long rail at an angle
-		const rail2 = new Rail(-20, -5, 20, 5);
+		const rail2 = new Rail(-42, 20, -100, -20);
 		this.scene.add(rail2.mesh);
 		this.rails.push(rail2);
-
-		// Add an additional curved rail
-		const rail3 = new Rail(10, 0, 20, -15);
-		this.scene.add(rail3.mesh);
-		this.rails.push(rail3);
-
-		// Add a shorter rail nearby
-		const rail4 = new Rail(-10, -10, -5, -15);
-		this.scene.add(rail4.mesh);
-		this.rails.push(rail4);
 
 		console.log("Rails created:", this.rails.length);
 	}

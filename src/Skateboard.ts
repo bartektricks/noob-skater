@@ -136,8 +136,7 @@ export class Skateboard {
 		const deck = new THREE.Mesh(deckGeometry, deckMaterial);
 
 		// Position skateboard at starting position
-		// Place the skateboard closer to the rail for easier testing
-		this.mesh.position.set(0, this.groundLevel, 5);
+		this.mesh.position.set(-10, this.groundLevel, 15); // Positioned near the parallel rails
 
 		deck.rotation.y = Math.PI / 2;
 		deck.position.set(-0.345, 0.3, 0);
@@ -841,8 +840,18 @@ export class Skateboard {
 			}
 		}
 
-		// Apply grind speed with the correct direction
-		this.grindSpeed = Math.abs(this.grindSpeed) * grindDirectionMultiplier;
+		// Match grinding speed with the skateboard's speed before jumping
+		// Use the absolute value of the current speed to determine the grinding speed magnitude
+		const speedMagnitude = Math.abs(this._speed);
+		// Apply a minimum and maximum cap to the grinding speed for better control
+		const minGrindSpeed = 0.1;
+		const maxGrindSpeed = 0.4;
+		const baseGrindSpeed = Math.max(minGrindSpeed, Math.min(maxGrindSpeed, speedMagnitude));
+		
+		// Apply grind speed with the correct direction based on approach angle
+		this.grindSpeed = baseGrindSpeed * grindDirectionMultiplier;
+		
+		console.log(`Setting grind speed to ${this.grindSpeed} based on previous speed ${this._speed}`);
 
 		// Set initial grind progress based on where we actually hit the rail
 		this.grindProgress = initialProgress;
@@ -1012,7 +1021,8 @@ export class Skateboard {
 	// Exit the rail (either by reaching the end or jumping off)
 	private exitRail(isJumping: boolean): void {
 		// Apply velocity in the direction we were grinding
-		const exitVelocity = this.railExitVelocity;
+		// Match exit velocity with the current grinding speed for consistency
+		const exitVelocity = Math.abs(this.grindSpeed);
 
 		// Calculate exit speed based on our grind direction
 		const exitSpeed = Math.sign(this.grindSpeed) * exitVelocity;
@@ -1020,12 +1030,64 @@ export class Skateboard {
 		// Set speed in the direction of rail exit
 		this._speed = exitSpeed;
 
+		// Calculate jump direction based on turning input
+		let jumpDirection = this.rotation;
+		
+		// Apply angled jumping based on turning input (A/D keys)
+		const turnAngle = Math.PI / 4; // 45 degrees in radians
+		
+		if (isJumping) {
+			// Check if turning keys are pressed to modify jump angle
+			if (this.keys.a) {
+				// Turn 45 degrees to the left
+				jumpDirection += turnAngle;
+				console.log("Jumping left at 45 degrees");
+			} else if (this.keys.d) {
+				// Turn 45 degrees to the right
+				jumpDirection -= turnAngle;
+				console.log("Jumping right at 45 degrees");
+			}
+		}
+		
+		// Get the direction for the jump based on turning
+		const facingDirection = new THREE.Vector3(
+			Math.sin(jumpDirection),
+			0,
+			Math.cos(jumpDirection)
+		);
+
 		// Apply upward velocity if jumping off
 		if (isJumping) {
-			this.verticalVelocity = this.jumpForce * 0.8; // Slightly lower jump when coming off rail
+			// Stronger vertical velocity when jumping off manually
+			// Now 2x higher than the original value (0.8 * 2 = 1.6)
+			this.verticalVelocity = this.jumpForce * 1.2; // 2x higher for dramatic air
+			
+			// Apply an immediate forward impulse to create momentum in the jump
+			// This creates a forward arc that carries the board's grinding momentum
+			const jumpImpulse = Math.abs(this.grindSpeed) * 2; // Scale impulse with grinding speed
+			
+			// Add an immediate position change in the direction of movement
+			// This creates the effect of jumping forward off the rail
+			this.mesh.position.x += facingDirection.x * jumpImpulse;
+			this.mesh.position.z += facingDirection.z * jumpImpulse;
+			
+			// When turning during jump, also rotate the board slightly in that direction
+			if (this.keys.a) {
+				this.rotation += turnAngle * 0.5; // Partial rotation to match jump direction
+			} else if (this.keys.d) {
+				this.rotation -= turnAngle * 0.5; // Partial rotation to match jump direction
+			}
+			
+			console.log(`Applied jump impulse: ${jumpImpulse} at angle: ${jumpDirection}`);
 		} else {
 			// Small hop when coming off the rail edge
-			this.verticalVelocity = this.jumpForce * 0.3;
+			// Also 2x higher than original (0.3 * 2 = 0.6)
+			this.verticalVelocity = this.jumpForce * 0.6; // 2x higher auto hop
+			
+			// Still apply a small forward impulse when reaching rail end
+			const endImpulse = Math.abs(this.grindSpeed) * 0.8; 
+			this.mesh.position.x += facingDirection.x * endImpulse;
+			this.mesh.position.z += facingDirection.z * endImpulse;
 		}
 
 		// Reset grinding state
