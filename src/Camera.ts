@@ -68,7 +68,6 @@ export class Camera {
 
 		// Get skateboard position, rotation and movement info
 		const skateboardPosition = this.skateboard.mesh.position.clone();
-		const skateboardRotation = this.skateboard.mesh.rotation.y;
 		const isGrounded = this.skateboard.isGrounded;
 		const movementDirection = this.skateboard.getMovementDirection();
 		const speed = this.skateboard.speed;

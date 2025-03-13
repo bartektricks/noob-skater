@@ -70,7 +70,7 @@ export class GameMenu {
 		const title = document.createElement("h1");
 		title.className =
 			"text-5xl font-bold uppercase tracking-wider text-red-400 mb-8 pb-6 border-b border-gray-700";
-		title.textContent = "Noob Skater";
+		title.textContent = "Claude Eagle: Noob Skater";
 		form.appendChild(title);
 
 		// Nickname field

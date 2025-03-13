@@ -1,4 +1,4 @@
-# Noob Skater
+# Claude Eagle: Noob Skater
 
 A multiplayer skateboarding game with Supabase server discovery.
 
