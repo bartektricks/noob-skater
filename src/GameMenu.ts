@@ -8,6 +8,14 @@ export interface GameStartOptions {
 	isOnlineMode: boolean;
 }
 
+// Define server type to avoid using any
+interface ServerEntry {
+	id: string;
+	server_name: string | null;
+	created_at: string;
+	player_count?: number;
+}
+
 export class GameMenu {
 	private menuElement!: HTMLElement;
 	private nicknameInput!: HTMLInputElement;
@@ -44,11 +52,11 @@ export class GameMenu {
 		// Create main container
 		this.menuElement = document.createElement("div");
 		this.menuElement.id = "game-menu";
-		this.menuElement.className = "fixed inset-0 flex justify-center items-center bg-black/80 z-[1000] font-sans";
+		this.menuElement.className = "fixed inset-0 flex justify-center items-center bg-gradient-to-br from-gray-900 to-black z-100 font-sans";
 
 		// Create menu content
 		this.menuContainer = document.createElement("div");
-		this.menuContainer.className = "bg-gray-800 rounded-lg shadow-lg p-6 w-[400px] max-w-[90%] text-center text-white";
+		this.menuContainer.className = "bg-gray-800/90 rounded-xl shadow-2xl px-10 pb-10 py-6 w-full max-w-3/6 text-center text-white backdrop-blur-sm border border-gray-700 max-h-[95dvh] overflow-y-auto";
 
 		// Create form
 		const form = document.createElement("form");
@@ -59,17 +67,17 @@ export class GameMenu {
 
 		// Title
 		const title = document.createElement("h1");
-		title.className = "text-2xl font-bold uppercase tracking-wider text-red-400 mb-4";
+		title.className = "text-5xl font-bold uppercase tracking-wider text-red-400 mb-8 pb-6 border-b border-gray-700";
 		title.textContent = "Noob Skater";
 		form.appendChild(title);
 
 		// Nickname field
 		const nicknameGroup = document.createElement("div");
-		nicknameGroup.className = "mb-5 text-left";
+		nicknameGroup.className = "mb-8 text-left";
 
 		const nicknameLabel = document.createElement("label");
 		nicknameLabel.htmlFor = "nickname";
-		nicknameLabel.className = "block mb-2 font-bold text-gray-300";
+		nicknameLabel.className = "block mb-3 font-bold text-gray-300";
 		nicknameLabel.textContent = "Nickname:";
 		nicknameGroup.appendChild(nicknameLabel);
 
@@ -77,7 +85,7 @@ export class GameMenu {
 		this.nicknameInput.type = "text";
 		this.nicknameInput.id = "nickname";
 		this.nicknameInput.name = "nickname";
-		this.nicknameInput.className = "w-full p-2 rounded bg-gray-700 border-none text-white text-base";
+		this.nicknameInput.className = "w-full p-3.5 rounded-lg bg-gray-700 border border-gray-600 text-white text-base focus:outline-none focus:ring-2 focus:ring-red-400 focus:border-transparent transition";
 		this.nicknameInput.placeholder = "Enter your nickname";
 		this.nicknameInput.required = true;
 		this.nicknameInput.maxLength = 15;
@@ -87,29 +95,29 @@ export class GameMenu {
 
 		// Game Mode Selection
 		const gameModeGroup = document.createElement("div");
-		gameModeGroup.className = "mb-5 text-left";
+		gameModeGroup.className = "mb-8 text-left";
 		
 		const gameModeLabel = document.createElement("div");
-		gameModeLabel.className = "block mb-2 font-bold text-gray-300";
+		gameModeLabel.className = "block mb-3 font-bold text-gray-300";
 		gameModeLabel.textContent = "Game Mode:";
 		gameModeGroup.appendChild(gameModeLabel);
 		
 		// Online Mode option
 		const onlineModeContainer = document.createElement("div");
-		onlineModeContainer.className = "flex items-center mb-2";
+		onlineModeContainer.className = "flex items-center mb-3";
 		
 		this.onlineModeRadio = document.createElement("input");
 		this.onlineModeRadio.type = "radio";
 		this.onlineModeRadio.id = "online-mode";
 		this.onlineModeRadio.name = "game-mode";
-		this.onlineModeRadio.className = "mr-2";
+		this.onlineModeRadio.className = "mr-3 h-4 w-4 text-red-400 focus:ring-red-400";
 		this.onlineModeRadio.checked = true;
 		this.onlineModeRadio.addEventListener("change", () => this.toggleGameModeOptions());
 		onlineModeContainer.appendChild(this.onlineModeRadio);
 		
 		const onlineModeLabel = document.createElement("label");
 		onlineModeLabel.htmlFor = "online-mode";
-		onlineModeLabel.className = "text-gray-300";
+		onlineModeLabel.className = "text-gray-300 font-medium";
 		onlineModeLabel.textContent = "Online Mode";
 		onlineModeContainer.appendChild(onlineModeLabel);
 		
@@ -123,13 +131,13 @@ export class GameMenu {
 		this.offlineModeRadio.type = "radio";
 		this.offlineModeRadio.id = "offline-mode";
 		this.offlineModeRadio.name = "game-mode";
-		this.offlineModeRadio.className = "mr-2";
+		this.offlineModeRadio.className = "mr-3 h-4 w-4 text-red-400 focus:ring-red-400";
 		this.offlineModeRadio.addEventListener("change", () => this.toggleGameModeOptions());
 		offlineModeContainer.appendChild(this.offlineModeRadio);
 		
 		const offlineModeLabel = document.createElement("label");
 		offlineModeLabel.htmlFor = "offline-mode";
-		offlineModeLabel.className = "text-gray-300";
+		offlineModeLabel.className = "text-gray-300 font-medium";
 		offlineModeLabel.textContent = "Offline Mode";
 		offlineModeContainer.appendChild(offlineModeLabel);
 		
@@ -138,39 +146,66 @@ export class GameMenu {
 		
 		// Server Mode Options (visible only when online mode is selected)
 		this.serverModeContainer = document.createElement("div");
-		this.serverModeContainer.className = "form-group";
+		this.serverModeContainer.className = "form-group mb-8 text-left";
 		this.serverModeContainer.id = "server-mode-container";
 		
 		const serverModeLabel = document.createElement("div");
-		serverModeLabel.className = "group-label";
+		serverModeLabel.className = "block mb-3 font-bold text-gray-300";
 		serverModeLabel.textContent = "Server Options:";
 		this.serverModeContainer.appendChild(serverModeLabel);
 		
+		// Create flex container for the radio options
+		const serverOptionsContainer = document.createElement("div");
+		serverOptionsContainer.className = "flex gap-8 mb-5";
+		this.serverModeContainer.appendChild(serverOptionsContainer);
+		
 		// Create New Server option
 		const createServerContainer = document.createElement("div");
-		createServerContainer.className = "radio-container";
+		createServerContainer.className = "flex items-center";
 		
 		this.hostRoleRadio = document.createElement("input");
 		this.hostRoleRadio.type = "radio";
 		this.hostRoleRadio.id = "host-role";
 		this.hostRoleRadio.name = "peer-role";
+		this.hostRoleRadio.className = "mr-3 h-4 w-4 text-red-400 focus:ring-red-400";
 		this.hostRoleRadio.checked = true;
 		
 		const createServerLabel = document.createElement("label");
 		createServerLabel.htmlFor = "host-role";
+		createServerLabel.className = "text-gray-300 font-medium";
 		createServerLabel.textContent = "Create New Server";
 		
 		createServerContainer.appendChild(this.hostRoleRadio);
 		createServerContainer.appendChild(createServerLabel);
-		this.serverModeContainer.appendChild(createServerContainer);
+		serverOptionsContainer.appendChild(createServerContainer);
+		
+		// Join Existing Server option
+		const joinServerContainer = document.createElement("div");
+		joinServerContainer.className = "flex items-center";
+		
+		this.clientRoleRadio = document.createElement("input");
+		this.clientRoleRadio.type = "radio";
+		this.clientRoleRadio.id = "client-role";
+		this.clientRoleRadio.name = "peer-role";
+		this.clientRoleRadio.className = "mr-3 h-4 w-4 text-red-400 focus:ring-red-400";
+		
+		const joinServerLabel = document.createElement("label");
+		joinServerLabel.htmlFor = "client-role";
+		joinServerLabel.className = "text-gray-300 font-medium";
+		joinServerLabel.textContent = "Join Existing Server";
+		
+		joinServerContainer.appendChild(this.clientRoleRadio);
+		joinServerContainer.appendChild(joinServerLabel);
+		serverOptionsContainer.appendChild(joinServerContainer);
 		
 		// Server name input (visible when creating a new server)
 		const serverNameGroup = document.createElement("div");
-		serverNameGroup.className = "form-group indent";
+		serverNameGroup.className = "mb-6 text-left";
 		serverNameGroup.id = "server-name-group";
 		
 		const serverNameLabel = document.createElement("label");
 		serverNameLabel.htmlFor = "server-name";
+		serverNameLabel.className = "block mb-3 font-bold text-gray-300";
 		serverNameLabel.textContent = "Server Name:";
 		serverNameGroup.appendChild(serverNameLabel);
 		
@@ -178,49 +213,54 @@ export class GameMenu {
 		this.serverNameInput.type = "text";
 		this.serverNameInput.id = "server-name";
 		this.serverNameInput.name = "server-name";
+		this.serverNameInput.className = "w-full p-3.5 rounded-lg bg-gray-700 border border-gray-600 text-white text-base focus:outline-none focus:ring-2 focus:ring-red-400 focus:border-transparent transition";
 		this.serverNameInput.placeholder = "Enter server name";
 		this.serverNameInput.maxLength = 30;
 		serverNameGroup.appendChild(this.serverNameInput);
 		
 		this.serverModeContainer.appendChild(serverNameGroup);
 		
-		// Join Existing Server option
-		const joinServerContainer = document.createElement("div");
-		joinServerContainer.className = "radio-container";
-		
-		this.clientRoleRadio = document.createElement("input");
-		this.clientRoleRadio.type = "radio";
-		this.clientRoleRadio.id = "client-role";
-		this.clientRoleRadio.name = "peer-role";
-		
-		const joinServerLabel = document.createElement("label");
-		joinServerLabel.htmlFor = "client-role";
-		joinServerLabel.textContent = "Join Existing Server";
-		
-		joinServerContainer.appendChild(this.clientRoleRadio);
-		joinServerContainer.appendChild(joinServerLabel);
-		this.serverModeContainer.appendChild(joinServerContainer);
-		
 		// Server list container (visible when joining an existing server)
 		this.serverListContainer = document.createElement("div");
-		this.serverListContainer.className = "server-list-container indent";
+		this.serverListContainer.className = "mb-5 rounded-lg overflow-hidden bg-gray-900/70 border border-gray-700 shadow-lg";
 		this.serverListContainer.id = "server-list-container";
 		this.serverListContainer.style.display = "none";
 		
 		const serverListTitle = document.createElement("div");
-		serverListTitle.className = "server-list-title";
-		serverListTitle.textContent = "Available Servers:";
+		serverListTitle.className = "py-3.5 px-5 font-bold text-gray-200 bg-gray-800/90 border-b border-gray-700 flex justify-between items-center";
+		serverListTitle.innerHTML = `
+			<span>Available Servers</span>
+			<span class="text-xs font-normal text-gray-400" id="server-count"></span>
+		`;
 		this.serverListContainer.appendChild(serverListTitle);
 		
 		const serverList = document.createElement("div");
-		serverList.className = "server-list";
+		serverList.className = "max-h-[280px] overflow-y-auto scrollbar-thin scrollbar-thumb-gray-600 scrollbar-track-gray-900";
 		serverList.id = "server-list";
 		this.serverListContainer.appendChild(serverList);
 		
+		// Add pagination controls
+		const paginationContainer = document.createElement("div");
+		paginationContainer.className = "flex justify-between items-center py-3 px-5 bg-gray-800/60 border-t border-gray-700";
+		paginationContainer.id = "pagination-container";
+		paginationContainer.innerHTML = `
+			<div class="flex space-x-3">
+				<button id="prev-page" class="px-4 py-1.5 rounded bg-gray-700 text-gray-300 hover:bg-gray-600 disabled:opacity-50 disabled:cursor-not-allowed text-sm font-medium">Prev</button>
+				<button id="next-page" class="px-4 py-1.5 rounded bg-gray-700 text-gray-300 hover:bg-gray-600 disabled:opacity-50 disabled:cursor-not-allowed text-sm font-medium">Next</button>
+			</div>
+			<div class="text-sm text-gray-400" id="page-info">Page 1 of 1</div>
+		`;
+		this.serverListContainer.appendChild(paginationContainer);
+		
 		const refreshButton = document.createElement("button");
 		refreshButton.type = "button";
-		refreshButton.className = "refresh-button";
-		refreshButton.textContent = "Refresh Server List";
+		refreshButton.className = "w-full py-3 px-5 bg-indigo-600/70 hover:bg-indigo-700/70 text-white rounded-b-lg transition font-medium flex justify-center items-center gap-3";
+		refreshButton.innerHTML = `
+			<svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+				<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+			</svg>
+			Refresh Server List
+		`;
 		refreshButton.onclick = () => this.refreshServerList();
 		this.serverListContainer.appendChild(refreshButton);
 		
@@ -228,12 +268,13 @@ export class GameMenu {
 		
 		// Connection code input for direct p2p connection
 		const connectionCodeGroup = document.createElement("div");
-		connectionCodeGroup.className = "form-group indent";
+		connectionCodeGroup.className = "mb-6 text-left";
 		connectionCodeGroup.id = "connection-code-group";
 		connectionCodeGroup.style.display = "none";
 		
 		const connectionCodeLabel = document.createElement("label");
 		connectionCodeLabel.htmlFor = "connection-code";
+		connectionCodeLabel.className = "block mb-3 font-bold text-gray-300";
 		connectionCodeLabel.textContent = "Direct P2P Connection Code:";
 		connectionCodeGroup.appendChild(connectionCodeLabel);
 		
@@ -241,6 +282,7 @@ export class GameMenu {
 		this.peerCodeInput.type = "text";
 		this.peerCodeInput.id = "connection-code";
 		this.peerCodeInput.name = "connection-code";
+		this.peerCodeInput.className = "w-full p-3.5 rounded-lg bg-gray-700 border border-gray-600 text-white text-base focus:outline-none focus:ring-2 focus:ring-red-400 focus:border-transparent transition";
 		this.peerCodeInput.placeholder = "Enter connection code";
 		connectionCodeGroup.appendChild(this.peerCodeInput);
 		
@@ -248,7 +290,7 @@ export class GameMenu {
 		
 		// Peer code display for hosts
 		this.peerCodeDisplay = document.createElement("div");
-		this.peerCodeDisplay.className = "peer-code-display";
+		this.peerCodeDisplay.className = "mb-6 p-5 bg-gray-900/70 rounded-lg border border-gray-700 hidden";
 		this.peerCodeDisplay.style.display = "none";
 		this.serverModeContainer.appendChild(this.peerCodeDisplay);
 		
@@ -256,17 +298,17 @@ export class GameMenu {
 		
 		// Buttons
 		const buttonGroup = document.createElement("div");
-		buttonGroup.className = "mt-6 flex flex-col gap-3";
+		buttonGroup.className = "mt-8 flex flex-col gap-4";
 		
 		this.startButton = document.createElement("button");
 		this.startButton.type = "submit";
-		this.startButton.className = "bg-blue-500 hover:bg-blue-600 text-white py-3 px-6 rounded font-bold text-lg transition-colors";
+		this.startButton.className = "bg-blue-600 hover:bg-blue-700 text-white py-4 px-6 rounded-lg font-bold text-lg transition-colors shadow-lg";
 		this.startButton.textContent = "Start Game";
 		buttonGroup.appendChild(this.startButton);
 		
 		this.resumeButton = document.createElement("button");
 		this.resumeButton.type = "button";
-		this.resumeButton.className = "bg-green-500 hover:bg-green-600 text-white py-3 px-6 rounded font-bold text-lg transition-colors hidden";
+		this.resumeButton.className = "bg-green-600 hover:bg-green-700 text-white py-4 px-6 rounded-lg font-bold text-lg transition-colors shadow-lg hidden";
 		this.resumeButton.textContent = "Resume Game";
 		this.resumeButton.style.display = "none";
 		this.resumeButton.onclick = () => this.resumeGame();
@@ -336,9 +378,22 @@ export class GameMenu {
 		
 		this.serversLoading = true;
 		const serverList = document.getElementById("server-list");
-		if (!serverList) return;
+		const serverCount = document.getElementById("server-count");
+		const pageInfo = document.getElementById("page-info");
+		const prevPageBtn = document.getElementById("prev-page") as HTMLButtonElement;
+		const nextPageBtn = document.getElementById("next-page") as HTMLButtonElement;
 		
-		serverList.innerHTML = '<div class="loading-message">Loading servers...</div>';
+		if (!serverList || !pageInfo || !prevPageBtn || !nextPageBtn || !serverCount) return;
+		
+		serverList.innerHTML = `
+			<div class="flex justify-center items-center py-10 text-gray-400">
+				<svg class="animate-spin -ml-1 mr-3 h-6 w-6 text-indigo-500" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+					<circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+					<path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+				</svg>
+				Loading servers...
+			</div>
+		`;
 		
 		try {
 			// Import dynamically to avoid circular dependencies
@@ -346,51 +401,138 @@ export class GameMenu {
 			const servers = await getActiveServers();
 			
 			serverList.innerHTML = '';
+			serverCount.textContent = `(${servers.length} found)`;
 			
 			if (servers.length === 0) {
-				serverList.innerHTML = '<div class="no-servers-message">No active servers found</div>';
+				serverList.innerHTML = `
+					<div class="flex flex-col justify-center items-center py-12 text-gray-400">
+						<svg xmlns="http://www.w3.org/2000/svg" class="h-14 w-14 mb-4 text-gray-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+							<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 12h14M5 12a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v4a2 2 0 01-2 2M5 12a2 2 0 00-2 2v4a2 2 0 002 2h14a2 2 0 002-2v-4a2 2 0 00-2-2m-2-4h.01M17 16h.01" />
+						</svg>
+						No active servers found
+					</div>
+				`;
 				this.serversLoading = false;
 				return;
 			}
 			
-			// Create a server entry for each server
-			for (const server of servers) {
+			// Setup pagination
+			const serversPerPage = 4;
+			let currentPage = 1;
+			const totalPages = Math.ceil(servers.length / serversPerPage);
+			
+			// Show a single server entry
+			const renderServerEntry = (server: ServerEntry, isSelected: boolean) => {
 				const serverEntry = document.createElement("div");
-				serverEntry.className = "server-entry";
+				serverEntry.className = "border-b border-gray-700 last:border-0 transition cursor-pointer hover:bg-gray-800/50";
 				serverEntry.dataset.id = server.id;
-				if (this.selectedServerId === server.id) {
-					serverEntry.classList.add("selected");
+				if (isSelected) {
+					serverEntry.classList.add("bg-indigo-900/30");
 				}
 				
+				const serverContent = document.createElement("div");
+				serverContent.className = "p-5";
+				
+				const serverNameTime = document.createElement("div");
+				serverNameTime.className = "flex justify-between items-center mb-2";
+				
 				const serverName = document.createElement("div");
-				serverName.className = "server-name";
+				serverName.className = "font-medium text-white text-lg";
 				serverName.textContent = server.server_name || "Unnamed Server";
 				
 				const serverTime = document.createElement("div");
-				serverTime.className = "server-time";
+				serverTime.className = "text-gray-400 text-sm";
 				serverTime.textContent = this.formatServerTime(server.created_at);
 				
-				serverEntry.appendChild(serverName);
-				serverEntry.appendChild(serverTime);
+				serverNameTime.appendChild(serverName);
+				serverNameTime.appendChild(serverTime);
+				serverContent.appendChild(serverNameTime);
+				
+				// Add player count if available
+				if (server.player_count !== undefined) {
+					const playerCount = document.createElement("div");
+					playerCount.className = "text-gray-400 text-sm";
+					playerCount.textContent = `Players: ${server.player_count}`;
+					serverContent.appendChild(playerCount);
+				}
+				
+				serverEntry.appendChild(serverContent);
 				
 				// Add click event to select server
 				serverEntry.addEventListener("click", () => {
 					// Remove selected class from all server entries
-					const serverEntries = document.querySelectorAll(".server-entry");
+					const serverEntries = document.querySelectorAll("[data-id]");
 					for (const entry of serverEntries) {
-						entry.classList.remove("selected");
+						entry.classList.remove("bg-indigo-900/30");
 					}
 					
 					// Add selected class to this server entry
-					serverEntry.classList.add("selected");
+					serverEntry.classList.add("bg-indigo-900/30");
 					this.selectedServerId = server.id;
 				});
 				
-				serverList.appendChild(serverEntry);
-			}
+				return serverEntry;
+			};
+			
+			// Function to render current page
+			const renderPage = (
+				serverList: HTMLElement, 
+				servers: ServerEntry[], 
+				currentPage: number, 
+				totalPages: number, 
+				serversPerPage: number, 
+				pageInfo: HTMLElement, 
+				prevPageBtn: HTMLButtonElement, 
+				nextPageBtn: HTMLButtonElement
+			) => {
+				const start = (currentPage - 1) * serversPerPage;
+				const end = start + serversPerPage;
+				const pageServers = servers.slice(start, end);
+				
+				serverList.innerHTML = '';
+				
+				// Create a server entry for each server
+				for (const server of pageServers) {
+					const isSelected = this.selectedServerId === server.id;
+					const serverEntry = renderServerEntry(server, isSelected);
+					serverList.appendChild(serverEntry);
+				}
+				
+				// Update page info
+				pageInfo.textContent = `Page ${currentPage} of ${totalPages}`;
+				
+				// Update button states
+				prevPageBtn.disabled = currentPage === 1;
+				nextPageBtn.disabled = currentPage === totalPages;
+			};
+			
+			// Initial render
+			renderPage(serverList, servers, currentPage, totalPages, serversPerPage, pageInfo, prevPageBtn, nextPageBtn);
+			
+			// Add pagination event listeners
+			prevPageBtn.onclick = () => {
+				if (currentPage > 1) {
+					currentPage--;
+					renderPage(serverList, servers, currentPage, totalPages, serversPerPage, pageInfo, prevPageBtn, nextPageBtn);
+				}
+			};
+			
+			nextPageBtn.onclick = () => {
+				if (currentPage < totalPages) {
+					currentPage++;
+					renderPage(serverList, servers, currentPage, totalPages, serversPerPage, pageInfo, prevPageBtn, nextPageBtn);
+				}
+			};
 		} catch (error) {
 			console.error("Failed to load servers:", error);
-			serverList.innerHTML = '<div class="error-message">Failed to load servers</div>';
+			serverList.innerHTML = `
+				<div class="flex flex-col justify-center items-center py-12 text-red-400">
+					<svg xmlns="http://www.w3.org/2000/svg" class="h-14 w-14 mb-4 text-red-500/70" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+						<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+					</svg>
+					Failed to load servers
+				</div>
+			`;
 		}
 		
 		this.serversLoading = false;
@@ -420,7 +562,8 @@ export class GameMenu {
 	// Set the peer code in the display (called after host generates code)
 	public setPeerCode(code: string): void {
 		this.peerCodeDisplay.innerHTML = `
-      <div class="code-box">${code}</div>
+      <div class="mb-3 font-medium text-gray-300">Share this code with friends to join your game:</div>
+      <div class="bg-black/40 py-3 px-4 rounded border border-gray-700 font-mono text-xl text-center text-yellow-300">${code}</div>
     `;
 		this.peerCodeDisplay.style.display = "block";
 	}
@@ -546,23 +689,31 @@ export class GameMenu {
 
 		// Show connection message
 		const connectionMessage = document.createElement("div");
-		connectionMessage.className = "my-6 text-center";
+		connectionMessage.className = "my-8 text-center";
 		connectionMessage.innerHTML = `
-			<p class="text-lg font-bold text-yellow-300 mb-4">Waiting for another player to join...</p>
-			<p class="text-sm text-gray-300 mb-6">Share the code below with a friend</p>
+			<p class="text-2xl font-bold text-yellow-300 mb-5">Waiting for another player to join...</p>
+			<p class="text-base text-gray-300 mb-8">Share the code below with a friend</p>
 		`;
 		connectionMessage.classList.add("connection-message");
 		
 		// Show peer code
 		this.peerCodeDisplay = document.createElement("div");
-		this.peerCodeDisplay.className = "bg-gray-900 text-yellow-300 p-4 rounded-lg font-mono text-xl mb-6 animate-pulse-custom flex justify-center";
+		this.peerCodeDisplay.className = "bg-gray-900/80 text-yellow-300 p-6 rounded-lg font-mono text-2xl mb-8 border border-gray-700 mx-auto max-w-md";
 		this.peerCodeDisplay.id = "peer-code-display";
-		this.peerCodeDisplay.textContent = "Generating code...";
+		this.peerCodeDisplay.innerHTML = `
+			<div class="flex justify-center items-center gap-3">
+				<svg class="animate-spin h-5 w-5 text-yellow-300" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+					<circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+					<path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+				</svg>
+				Generating code...
+			</div>
+		`;
 		
 		// Show a cancel button to go back to the main menu
 		const cancelButton = document.createElement("button");
 		cancelButton.textContent = "Cancel";
-		cancelButton.className = "bg-gray-600 hover:bg-gray-500 text-white py-2 px-4 rounded mt-5";
+		cancelButton.className = "bg-gray-600 hover:bg-gray-500 text-white py-3 px-6 rounded-lg font-medium text-lg transition-colors shadow-lg";
 		cancelButton.addEventListener("click", () => {
 			this.resetMenuDisplay();
 		});
@@ -641,87 +792,6 @@ export class GameMenu {
 
 	// Add custom CSS styles for the server list
 	private addStyles(): void {
-		const styleElement = document.createElement("style");
-		styleElement.textContent = `
-			.server-list-container {
-				margin-top: 10px;
-				max-height: 200px;
-				overflow-y: auto;
-				border: 1px solid #444;
-				border-radius: 4px;
-				background-color: rgba(0, 0, 0, 0.2);
-			}
-			
-			.server-list-title {
-				padding: 8px;
-				font-weight: bold;
-				border-bottom: 1px solid #444;
-			}
-			
-			.server-list {
-				max-height: 150px;
-				overflow-y: auto;
-			}
-			
-			.server-entry {
-				padding: 8px;
-				border-bottom: 1px solid #333;
-				cursor: pointer;
-				display: flex;
-				justify-content: space-between;
-				transition: background-color 0.2s;
-			}
-			
-			.server-entry:hover {
-				background-color: rgba(255, 255, 255, 0.1);
-			}
-			
-			.server-entry.selected {
-				background-color: rgba(0, 100, 255, 0.3);
-			}
-			
-			.server-name {
-				font-weight: bold;
-			}
-			
-			.server-time {
-				color: #aaa;
-				font-size: 0.9em;
-			}
-			
-			.no-servers-message, .loading-message, .error-message {
-				padding: 15px;
-				text-align: center;
-				color: #aaa;
-			}
-			
-			.error-message {
-				color: #ff6b6b;
-			}
-			
-			.refresh-button {
-				width: 100%;
-				padding: 8px;
-				background-color: rgba(0, 100, 255, 0.2);
-				border: 1px solid #444;
-				color: white;
-				cursor: pointer;
-				transition: background-color 0.2s;
-			}
-			
-			.refresh-button:hover {
-				background-color: rgba(0, 100, 255, 0.4);
-			}
-			
-			.indent {
-				margin-left: 20px;
-				margin-top: 5px;
-			}
-			
-			.form-group.button-group {
-				margin-top: 20px;
-			}
-		`;
-		document.head.appendChild(styleElement);
+		// No custom styles needed anymore, using Tailwind classes instead
 	}
 }
