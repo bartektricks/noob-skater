@@ -591,8 +591,21 @@ export class UI {
 			"bg-gray-800 text-white rounded px-3 py-2 flex-grow border border-gray-700 focus:outline-none focus:ring-2 focus:ring-blue-500";
 		this.chatInput.placeholder = "Type a message...";
 		this.chatInput.addEventListener("keypress", (e) => {
+			// Stop event propagation to prevent skateboard movement while typing
+			e.stopPropagation();
+
 			if (e.key === "Enter" && !e.shiftKey) {
 				this.sendChatMessage();
+				e.preventDefault();
+			}
+		});
+		// Add keydown event listener to handle ESC key for blurring the input
+		this.chatInput.addEventListener("keydown", (e) => {
+			// Stop event propagation to prevent skateboard movement while typing
+			e.stopPropagation();
+
+			if (e.key === "Escape") {
+				this.chatInput.blur();
 				e.preventDefault();
 			}
 		});
