@@ -363,7 +363,7 @@ export class Skateboard {
 		) {
 			this._speed = Math.max(
 				this._speed - this.acceleration,
-				-this.maxSpeed / 2,
+				-this.maxSpeed,
 			);
 		} else {
 			// Apply deceleration when no keys are pressed
@@ -699,7 +699,7 @@ export class Skateboard {
 			// Calculate horizontal distance (X and Z only)
 			const horizontalDistance = Math.sqrt(
 				(this.mesh.position.x - closestPoint.x) ** 2 +
-					(this.mesh.position.z - closestPoint.z) ** 2,
+				(this.mesh.position.z - closestPoint.z) ** 2,
 			);
 
 			// Calculate vertical distance (Y only)
@@ -851,7 +851,7 @@ export class Skateboard {
 		const baseScore = 100; // Base score per trick
 		const totalScore = Math.floor(
 			(baseScore * this.currentCombo.length + grindScore) *
-				this.comboMultiplier,
+			this.comboMultiplier,
 		);
 
 		// Show combo text with updated score

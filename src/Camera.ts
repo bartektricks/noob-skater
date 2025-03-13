@@ -29,7 +29,6 @@ export class Camera {
 		[key: string]: { slider: HTMLInputElement; valueDisplay: HTMLSpanElement };
 	} = {};
 
-	// Tony Hawk style camera properties
 	private targetCameraAngle = 0; // Angle we're moving toward
 	private currentCameraAngle = 0; // Current actual camera angle
 	private cameraLerpFactor = 0.03; // How quickly camera rotates to new position (lower = slower)
@@ -75,31 +74,15 @@ export class Camera {
 		const speed = this.skateboard.speed;
 		const stance = this.skateboard.getStance();
 
-		// Adjust camera behavior based on speed and state
-		if (Math.abs(speed) > 0.05) {
-			// Moving with significant speed - target movement direction
-			// When in fakie, adjust the target angle by 180 degrees to keep camera behind player
-			if (stance === "fakie") {
-				this.targetCameraAngle = this.normalizeAngle(
-					movementDirection + Math.PI,
-				);
-			} else {
-				this.targetCameraAngle = movementDirection;
-			}
-		} else if (isGrounded) {
-			// Standing still on ground - slowly align with board orientation
-			// When in fakie, adjust the target angle by 180 degrees
-			if (stance === "fakie") {
-				this.targetCameraAngle = this.normalizeAngle(
-					skateboardRotation + Math.PI,
-				);
-			} else {
-				this.targetCameraAngle = skateboardRotation;
-			}
+		if (stance === "fakie") {
+			this.targetCameraAngle = this.normalizeAngle(
+				movementDirection + Math.PI,
+			);
+		} else {
+			this.targetCameraAngle = movementDirection;
 		}
-		// When in air with low speed, keep the current target angle (for stability during tricks)
 
-		// Smoothly interpolate current camera angle toward target angle (Tony Hawk style)
+
 		// Calculate shortest path to target angle
 		const angleDiff = this.normalizeAngle(
 			this.targetCameraAngle - this.currentCameraAngle,
