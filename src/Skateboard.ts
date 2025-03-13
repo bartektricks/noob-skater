@@ -585,7 +585,8 @@ export class Skateboard {
 		this.reorientStartAngle = this.rotation;
 
 		// Check if we've done approximately a 180-degree turn (between 135 and 225 degrees)
-		const isApprox180 = absDiff > Math.PI * 0.75 && absDiff < Math.PI * 1.25;
+		// Slightly increased threshold to catch more near-180 cases
+		const isApprox180 = absDiff > Math.PI * 0.7 && absDiff < Math.PI * 1.3;
 
 		// Store old movement speed direction to prevent flicker during transition
 		const oldSpeedSign = Math.sign(this._speed);
@@ -604,15 +605,20 @@ export class Skateboard {
 				this._speed = -oldSpeedSign * Math.abs(this._speed);
 			}
 		} else {
-			// For non-180 rotations, maintain the current stance (fakie or regular)
-			// but align the board with the movement direction
+			// For non-180 rotations, we need to maintain current stance but adjust orientation
+			// based on the current difference relative to our skating stance
 			if (this.movementFlipped) {
-				// In fakie: align with opposite of movement direction
-				this.reorientTargetAngle = this.normalizeAngle(
-					this.airMoveDirection + Math.PI,
-				);
+				// In fakie stance: we need to maintain the fakie orientation
+				// We should measure the rotation deviation from the fakie direction (airMoveDirection + Math.PI)
+				const fakieDirection = this.normalizeAngle(this.airMoveDirection + Math.PI);
+				
+				// Calculate how far we rotated away from our fakie direction
+				const fakieRotationDiff = this.normalizeAngle(this.rotation - fakieDirection);
+				
+				// Add this small deviation to the fakie direction to maintain relative orientation
+				this.reorientTargetAngle = this.normalizeAngle(fakieDirection + fakieRotationDiff);
 			} else {
-				// In regular: align with movement direction
+				// In regular stance: align with movement direction
 				this.reorientTargetAngle = this.airMoveDirection;
 			}
 			// Don't change movementFlipped state for small rotations
@@ -674,14 +680,21 @@ export class Skateboard {
 		endAngle: number,
 		progress: number,
 	): number {
-		// Normalize angles
+		// Normalize angles to be between -PI and PI
 		const normalizedStartAngle = this.normalizeAngle(startAngle);
 		const normalizedEndAngle = this.normalizeAngle(endAngle);
 
-		// Find shortest path
-		const delta = normalizedEndAngle - normalizedStartAngle;
+		// Calculate delta, considering the shortest path around the circle
+		let delta = normalizedEndAngle - normalizedStartAngle;
+		
+		// Make sure we take the shortest path around the circle
+		if (delta > Math.PI) {
+			delta -= Math.PI * 2;
+		} else if (delta < -Math.PI) {
+			delta += Math.PI * 2;
+		}
 
-		// Interpolate
+		// Interpolate using the shortest path
 		return normalizedStartAngle + delta * progress;
 	}
 
