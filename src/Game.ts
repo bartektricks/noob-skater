@@ -1,5 +1,6 @@
 import * as THREE from "three";
 import { Camera } from "./Camera";
+import { ChatManager, type ChatMessage } from "./ChatManager";
 import { GameMenu } from "./GameMenu";
 import type { GameStartOptions } from "./GameMenu";
 import {
@@ -74,6 +75,9 @@ export class Game {
 
 	// Add the missing lastSendPosition property
 	private lastSendPosition: { x: number; y: number; z: number } | null = null;
+
+	// Add ChatManager
+	private chatManager: ChatManager | null = null;
 
 	constructor() {
 		// Create scene
@@ -154,14 +158,33 @@ export class Game {
 
 	// Handle keyboard events
 	private handleKeyDown(event: KeyboardEvent): void {
+		// Ignore key events when an input is focused
+		if (
+			document.activeElement instanceof HTMLInputElement ||
+			document.activeElement instanceof HTMLTextAreaElement
+		) {
+			return;
+		}
+
+		// Don't handle keys when game is not running
+		if (!this.isGameRunning) {
+			return;
+		}
+
 		const key = event.key.toLowerCase();
 
-		// Handle pause menu toggle
+		// Toggle pause menu with ESC
 		if (key === "escape") {
-			if (this.isGameRunning) {
-				// Show pause menu when ESC is pressed during gameplay
+			const isPauseMenuVisible = this.ui.getIsPauseMenuVisible();
+			
+			// If paused, unpause
+			if (isPauseMenuVisible) {
+				this.ui.togglePauseMenu(false);
+				this.resumeGame();
+			} else {
+				// Pause the game
 				this.ui.togglePauseMenu(true);
-
+				
 				// If hosting and in online mode, show the server ID in the pause menu
 				if (
 					this.isMultiplayer &&
@@ -173,21 +196,26 @@ export class Game {
 				} else {
 					this.ui.setServerIdInPauseMenu(null);
 				}
-
+				
+				// Make sure to hide chat when opening pause menu
+				this.ui.toggleChat(false);
+				
 				// Pause the game
 				this.isGameRunning = false;
-			} else {
-				// If game is already paused but pause menu is visible, hide it and resume
-				if (this.ui.getIsPauseMenuVisible()) {
-					this.ui.togglePauseMenu(false);
-
-					// Resume the game properly
-					this.resumeGame();
-				} else {
-					// Otherwise toggle the main menu (GameMenu)
-					this.toggleMenu();
-				}
 			}
+			
+			return;
+		}
+		
+		// Toggle chat with T
+		if (key === "t") {
+			this.ui.toggleChat();
+			event.preventDefault();
+			return;
+		}
+
+		// Skip input handling if pause menu is visible
+		if (this.ui.getIsPauseMenuVisible()) {
 			return;
 		}
 
@@ -696,6 +724,23 @@ export class Game {
 					filteredNicknames,
 				);
 			},
+
+			onChatMessageReceived: (message: ChatMessage) => {
+				// This is an incoming message from the network - we should display it
+				// UNLESS it's our own message being relayed back to us
+				const myPeerId = this.networkManager?.getMyPeerId();
+				
+				// Always log the message for debugging
+				console.log(`Received chat message: sender=${message.senderId}, myPeerId=${myPeerId}, message=${message.message}`);
+				
+				// Only process if it's from someone else (not our own message being echoed back)
+				if (message.senderId !== myPeerId) {
+					console.log(`Displaying remote message from ${message.senderNickname}`);
+					this.handleChatMessage(message, false);
+				} else {
+					console.log(`Ignoring own message that was relayed back: ${message.message}`);
+				}
+			}
 		};
 
 		// Initialize network manager
@@ -772,6 +817,31 @@ export class Game {
 			console.error("Client mode selected but no peer code provided");
 			this.ui.showNotification("No peer code provided");
 			this.ui.showConnectionStatus("disconnected");
+		}
+
+		// Initialize chat manager
+		if (this.networkManager) {
+			console.log("Initializing ChatManager...");
+			this.chatManager = new ChatManager(this.networkManager);
+			
+			// Setup the chat message callback first before initializing to ensure we don't miss any messages
+			this.chatManager.setMessageCallback((message: ChatMessage) => {
+				console.log(`Message callback from ChatManager, message: ${message.message} from ${message.senderNickname}`);
+				// This determines if this is our own message that we sent
+				const isOwnMessage = message.senderId === this.networkManager?.getMyPeerId();
+				this.handleChatMessage(message, isOwnMessage);
+			});
+			
+			// Now initialize the chat manager (which sets up network handlers)
+			this.chatManager.initialize();
+			
+			// Set up UI chat callback (when user sends a message through the UI)
+			this.ui.setChatMessageCallback((message: string) => {
+				console.log(`User sent message through UI: ${message}`);
+				if (this.chatManager) {
+					this.chatManager.sendMessage(message);
+				}
+			});
 		}
 
 		// Start a periodic update of the player list
@@ -1660,5 +1730,28 @@ export class Game {
 
 		// Resume the game
 		this.isGameRunning = true;
+	}
+
+	/**
+	 * Handle an incoming chat message
+	 */
+	private handleChatMessage(message: ChatMessage, isOwnMessage: boolean): void {
+		console.log(`Game: Handling chat message from ${message.senderNickname}: "${message.message}" (isOwnMessage: ${isOwnMessage})`);
+		
+		// Add message to UI
+		this.ui.addChatMessage(
+			message.senderId,
+			message.senderNickname,
+			message.message,
+			isOwnMessage
+		);
+		
+		// Show a notification if it's not our own message
+		if (!isOwnMessage) {
+			this.ui.showNotification(`${message.senderNickname}: ${message.message}`, 3000);
+			
+			// Also play a sound for notifications (if we add one later)
+			// this.playNotificationSound();
+		}
 	}
 }

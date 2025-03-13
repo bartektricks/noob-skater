@@ -1,4 +1,5 @@
 import Peer, { type DataConnection } from "peerjs";
+import type { ChatMessage } from "./ChatManager";
 
 export interface SkateboardState {
 	position: { x: number; y: number; z: number };
@@ -53,14 +54,16 @@ export type NetworkMessageType =
 	| "playerInput"
 	| "playerJoined"
 	| "playerLeft"
-	| "playerList";
+	| "playerList"
+	| "chatMessage";
 
 export type NetworkMessagePayload =
 	| GameState
 	| PlayerInput
 	| PlayerJoinedMessage
 	| PlayerLeftMessage
-	| PlayerListMessage;
+	| PlayerListMessage
+	| ChatMessage;
 
 export interface NetworkMessage {
 	type: string;
@@ -81,6 +84,7 @@ export interface NetworkManagerEvents {
 		nicknames: Record<string, string>,
 	) => void;
 	onGetNickname?: () => string;
+	onChatMessageReceived?: (message: ChatMessage) => void;
 }
 
 export interface RemotePlayer {
@@ -94,6 +98,7 @@ export class NetworkManager {
 	private isHost = false;
 	private events: NetworkManagerEvents;
 	private maxConnections = 7; // Maximum of 7 clients + 1 host = 8 players
+	private nickname = "Player";
 
 	constructor(events: NetworkManagerEvents) {
 		this.events = events;
@@ -296,30 +301,64 @@ export class NetworkManager {
 	}
 
 	private setupConnectionHandlers(connection: DataConnection) {
+		connection.on("open", () => {
+			// ... existing code ...
+		});
+
 		connection.on("data", (data: unknown) => {
 			const message = data as NetworkMessage;
-			console.log("Received data from", connection.peer, ":", message.type);
+			if (!message || !message.type) {
+				console.warn("Received invalid message format:", data);
+				return;
+			}
 
-			// Handle different types of messages
+			// Handle different message types
 			if (message.type === "gameState") {
+				// ... existing gameState handler ...
 				this.events.onGameStateReceived(message.payload as GameState);
 			} else if (message.type === "playerInput") {
+				// ... existing playerInput handler ...
 				// Use the provided clientId if available, otherwise use the connection's peer ID
 				const payload = message.payload as PlayerInput;
 				const clientId = payload.clientId || connection.peer;
 				this.events.onPlayerInputReceived(payload, clientId);
 			} else if (message.type === "playerJoined") {
+				// ... existing playerJoined handler ...
 				const payload = message.payload as PlayerJoinedMessage;
 				console.log(
 					`Received playerJoined message: ${payload.peerId}${payload.nickname ? ` (${payload.nickname})` : ""}`,
 				);
 				this.events.onPlayerJoined(payload.peerId, payload.nickname);
 			} else if (message.type === "playerLeft") {
+				// ... existing playerLeft handler ...
 				this.events.onPlayerLeft((message.payload as PlayerLeftMessage).peerId);
 			} else if (message.type === "playerList") {
+				// ... existing playerList handler ...
 				const payload = message.payload as PlayerListMessage;
 				console.log("Received full player list:", payload);
 				this.events.onPlayerListReceived?.(payload.peerIds, payload.nicknames);
+			} else if (message.type === "chatMessage") {
+				// Chat message received
+				const payload = message.payload as ChatMessage;
+				console.log(`Received chat message over network from ${payload.senderNickname}: ${payload.message}`);
+				
+				// IMPORTANT: Always process the message locally first
+				if (this.events.onChatMessageReceived) {
+					// This is an incoming message from someone else, so we should always display it
+					this.events.onChatMessageReceived(payload);
+				}
+				
+				// If we're the host, relay this message to all other clients
+				if (this.isHost) {
+					console.log(`Host: Relaying chat message from ${payload.senderNickname} to all other clients`);
+					for (const conn of this.connections.values()) {
+						// Don't send back to original sender
+						if (conn.peer !== connection.peer && conn.open) {
+							console.log(`Relaying to: ${conn.peer}`);
+							conn.send(message);
+						}
+					}
+				}
 			}
 		});
 
@@ -506,5 +545,68 @@ export class NetworkManager {
 		}
 
 		console.log("Broadcasted player list to all clients:", message.payload);
+	}
+
+	// Method to get the current player's nickname
+	public getMyNickname(): string {
+		if (this.events.onGetNickname) {
+			return this.events.onGetNickname();
+		}
+		return this.nickname;
+	}
+
+	// Method to set the current player's nickname
+	public setNickname(nickname: string): void {
+		this.nickname = nickname;
+	}
+
+	// Register handler for chat messages
+	public registerChatMessageHandler(handler: (message: ChatMessage) => void): void {
+		console.log("Chat message handler registered");
+		this.events.onChatMessageReceived = handler;
+	}
+
+	// Send a chat message to all connected peers
+	public sendChatMessage(message: ChatMessage): void {
+		const chatMessage: NetworkMessage = {
+			type: "chatMessage",
+			payload: message,
+		};
+
+		console.log(`Sending chat message to peers: ${message.message} (isHost: ${this.isHost}, senderId: ${message.senderId})`);
+		
+		// If we're not connected to anyone, just log a warning
+		if (this.connections.size === 0) {
+			console.warn("Cannot send chat message - not connected to any peers");
+			return;
+		}
+		
+		// Regardless of host status, send the message to all connections
+		// This ensures everyone gets the message
+		if (this.isHost) {
+			// If we're the host, send to all clients
+			for (const connection of this.connections.values()) {
+				if (connection.open) {
+					console.log(`Host sending chat to client ${connection.peer}`);
+					connection.send(chatMessage);
+				}
+			}
+		} else {
+			// If we're a client, send to the host who will relay it
+			// Client should only have one connection - to the host
+			let sentToHost = false;
+			for (const connection of this.connections.values()) {
+				if (connection.open) {
+					console.log(`Client sending chat to host ${connection.peer}`);
+					connection.send(chatMessage);
+					sentToHost = true;
+					break; // Only send to the host
+				}
+			}
+			
+			if (!sentToHost) {
+				console.warn("Failed to send message to host - no open connection");
+			}
+		}
 	}
 }

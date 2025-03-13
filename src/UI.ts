@@ -15,6 +15,18 @@ export class UI {
 	private connectedPlayersElement: HTMLDivElement | null = null;
 	private isControlsVisible = true; // Track controls visibility state
 	private isCameraDebugEnabled = false; // Track if camera debug is enabled
+	
+	// Chat UI elements
+	private chatContainer!: HTMLDivElement;
+	private chatMessages!: HTMLDivElement;
+	private chatInput!: HTMLInputElement;
+	private chatButton!: HTMLButtonElement;
+	private chatToggleButton!: HTMLButtonElement;
+	private isChatVisible = false;
+	private onSendMessage: ((message: string) => void) | null = null;
+	private lastReceivedMessageTime = 0;
+	private chatUnreadBadge!: HTMLDivElement;
+	private unreadCount = 0;
 
 	constructor() {
 		// Check for debug=camera URL parameter
@@ -40,6 +52,9 @@ export class UI {
 			Disconnected
 		`;
 		document.body.appendChild(this.connectionStatusDisplay);
+
+		// Initialize chat UI
+		this.createChatInterface();
 	}
 
 	/**
@@ -69,6 +84,10 @@ export class UI {
 				</button>
 			</div>
 			<div class="grid grid-cols-2 gap-x-6 gap-y-2 text-gray-200">
+				<div class="flex items-center">
+					<span class="bg-gray-700 rounded px-2 py-0.5 mr-2 text-xs font-mono">T</span>
+					<span>Toggle chat window</span>
+				</div>
 				<div class="flex items-center">
 					<span class="bg-gray-700 rounded px-2 py-0.5 mr-2 text-xs font-mono">W/S</span>
 					<span>Accelerate/Brake</span>
@@ -519,5 +538,194 @@ export class UI {
 				<div class="text-2xl font-bold text-yellow-400">${this.currentHighScore}</div>
 			`;
 		}
+	}
+
+	/**
+	 * Create the chat interface
+	 */
+	private createChatInterface(): void {
+		// Create chat container
+		this.chatContainer = document.createElement("div");
+		this.chatContainer.className = 
+			"fixed bottom-20 right-5 w-80 bg-black/80 rounded-lg shadow-lg backdrop-blur-sm border border-gray-700 z-40 transition-all duration-300 transform translate-x-full";
+		
+		// Create chat header with toggle button
+		const chatHeader = document.createElement("div");
+		chatHeader.className = 
+			"flex items-center justify-between p-3 border-b border-gray-700";
+		
+		const chatTitle = document.createElement("span");
+		chatTitle.className = "text-white font-bold";
+		chatTitle.textContent = "Chat";
+		
+		this.chatToggleButton = document.createElement("button");
+		this.chatToggleButton.className = 
+			"absolute -left-12 bottom-0 bg-black/80 text-white px-3 py-2 rounded-l-lg border border-gray-700 border-r-0";
+		this.chatToggleButton.innerHTML = 
+			'<svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z" /></svg>';
+		
+		// Create unread badge
+		this.chatUnreadBadge = document.createElement("div");
+		this.chatUnreadBadge.className = 
+			"absolute -top-2 -right-2 bg-red-500 text-white text-xs rounded-full w-5 h-5 flex items-center justify-center hidden";
+		this.chatUnreadBadge.textContent = "0";
+		this.chatToggleButton.appendChild(this.chatUnreadBadge);
+		
+		// Add click event to toggle button
+		this.chatToggleButton.addEventListener("click", () => {
+			this.toggleChat();
+		});
+		
+		chatHeader.appendChild(chatTitle);
+		
+		// Create chat messages container
+		this.chatMessages = document.createElement("div");
+		this.chatMessages.className = 
+			"p-3 h-64 overflow-y-auto flex flex-col gap-2 scrollbar-thin scrollbar-thumb-gray-600 scrollbar-track-transparent";
+		
+		// Create chat input area
+		const chatInputContainer = document.createElement("div");
+		chatInputContainer.className = 
+			"p-3 border-t border-gray-700 flex gap-2";
+		
+		this.chatInput = document.createElement("input");
+		this.chatInput.className = 
+			"bg-gray-800 text-white rounded px-3 py-2 flex-grow border border-gray-700 focus:outline-none focus:ring-2 focus:ring-blue-500";
+		this.chatInput.placeholder = "Type a message...";
+		this.chatInput.addEventListener("keypress", (e) => {
+			if (e.key === "Enter" && !e.shiftKey) {
+				this.sendChatMessage();
+				e.preventDefault();
+			}
+		});
+		
+		this.chatButton = document.createElement("button");
+		this.chatButton.className = 
+			"bg-blue-600 hover:bg-blue-700 text-white rounded px-3";
+		this.chatButton.innerHTML = 
+			'<svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 5l7 7-7 7M5 5l7 7-7 7" /></svg>';
+		this.chatButton.addEventListener("click", () => {
+			this.sendChatMessage();
+		});
+		
+		chatInputContainer.appendChild(this.chatInput);
+		chatInputContainer.appendChild(this.chatButton);
+		
+		// Assemble chat container
+		this.chatContainer.appendChild(chatHeader);
+		this.chatContainer.appendChild(this.chatMessages);
+		this.chatContainer.appendChild(chatInputContainer);
+		
+		// Add chat container and toggle button to the DOM
+		document.body.appendChild(this.chatContainer);
+		document.body.appendChild(this.chatToggleButton);
+	}
+	
+	/**
+	 * Toggle chat visibility
+	 */
+	public toggleChat(show?: boolean): void {
+		this.isChatVisible = show !== undefined ? show : !this.isChatVisible;
+		
+		if (this.isChatVisible) {
+			this.chatContainer.classList.remove("translate-x-full");
+			this.chatInput.focus();
+			// Reset unread count
+			this.unreadCount = 0;
+			this.chatUnreadBadge.textContent = "0";
+			this.chatUnreadBadge.classList.add("hidden");
+		} else {
+			this.chatContainer.classList.add("translate-x-full");
+		}
+	}
+	
+	/**
+	 * Send chat message
+	 */
+	private sendChatMessage(): void {
+		const message = this.chatInput.value.trim();
+		if (message && this.onSendMessage) {
+			this.onSendMessage(message);
+			this.chatInput.value = "";
+		}
+	}
+	
+	/**
+	 * Set the callback for when a message is sent
+	 */
+	public setChatMessageCallback(callback: (message: string) => void): void {
+		this.onSendMessage = callback;
+	}
+	
+	/**
+	 * Add a chat message to the display
+	 */
+	public addChatMessage(senderId: string, senderName: string, message: string, isMe = false): void {
+		console.log(`UI: Adding chat message from ${isMe ? "me" : senderName} (${senderId}): ${message}`);
+		
+		// Create a timestamp display
+		const timestamp = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+		
+		const messageElement = document.createElement("div");
+		messageElement.className = isMe 
+			? "bg-blue-600 text-white p-3 rounded-lg self-end max-w-[80%] mb-3 shadow-md" 
+			: "bg-gray-700 text-white p-3 rounded-lg self-start max-w-[80%] mb-3 shadow-md";
+		
+		const headerElement = document.createElement("div");
+		headerElement.className = "flex justify-between items-center mb-1 text-xs gap-1";
+		
+		const nameElement = document.createElement("span");
+		nameElement.className = "font-bold";
+		nameElement.textContent = isMe ? "You" : senderName;
+		
+		const timeElement = document.createElement("span");
+		timeElement.className = "opacity-70";
+		timeElement.textContent = timestamp;
+		
+		headerElement.appendChild(nameElement);
+		headerElement.appendChild(timeElement);
+		
+		const textElement = document.createElement("div");
+		textElement.className = "break-words";
+		textElement.textContent = message;
+		
+		messageElement.appendChild(headerElement);
+		messageElement.appendChild(textElement);
+		
+		this.chatMessages.appendChild(messageElement);
+		this.chatMessages.scrollTop = this.chatMessages.scrollHeight;
+		
+		// Always auto-show the chat when receiving a message from others
+		if (!isMe && !this.isChatVisible) {
+			// Auto-show chat on messages from others
+			this.toggleChat(true);
+			
+			// After 5 seconds, toggle chat back to hidden state if not interacting with it
+			setTimeout(() => {
+				if (this.isChatVisible) {
+					this.toggleChat(false);
+				}
+			}, 5000);
+		}
+		
+		// If chat is not visible, increment unread count and show notification
+		if (!this.isChatVisible) {
+			this.unreadCount++;
+			this.chatUnreadBadge.textContent = this.unreadCount.toString();
+			this.chatUnreadBadge.classList.remove("hidden");
+			
+			// Show a brief reminder about the chat key if this is the first message
+			if (this.unreadCount === 1) {
+				const reminderElement = document.createElement("div");
+				reminderElement.className = "bg-blue-800 text-white text-xs p-2 rounded-lg text-center my-3";
+				reminderElement.textContent = "Press T to toggle chat";
+				this.chatMessages.appendChild(reminderElement);
+				
+				// Also show a notification about how to open chat
+				this.showNotification("New message! Press T to open chat", 3000);
+			}
+		}
+		
+		this.lastReceivedMessageTime = Date.now();
 	}
 }

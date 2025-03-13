@@ -77,3 +77,13 @@ bun run preview
 - Real-time player interactions
 - 3D graphics with Three.js
 - Tailwind CSS for styling
+- P2P chat for player communication
+
+## Controls
+
+- WASD/Arrow Keys: Move the skateboard
+- Space: Jump
+- E: Do a kickflip
+- Escape: Toggle pause menu
+- T: Toggle chat interface
+- Enter: Send chat message when chat is open
