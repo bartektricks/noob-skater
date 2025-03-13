@@ -76,7 +76,10 @@ export interface NetworkManagerEvents {
 	onPlayerJoined: (peerId: string, nickname?: string) => void;
 	onPlayerLeft: (peerId: string) => void;
 	onHostTakeover: (hostId: string) => void;
-	onPlayerListReceived?: (peerIds: string[], nicknames: Record<string, string>) => void;
+	onPlayerListReceived?: (
+		peerIds: string[],
+		nicknames: Record<string, string>,
+	) => void;
 	onGetNickname?: () => string;
 }
 
@@ -133,27 +136,29 @@ export class NetworkManager {
 
 					this.connections.set(conn.peer, conn);
 					this.setupConnectionHandlers(conn);
-					
+
 					// Wait for the connection to be fully ready
 					conn.on("open", () => {
 						// First notify that peer has connected
 						this.events.onConnected(conn.peer);
-						
+
 						// Then, if we have a nickname, send it to the new client immediately
 						if (nickname) {
-							console.log(`Sending host nickname to new client ${conn.peer}: ${nickname}`);
+							console.log(
+								`Sending host nickname to new client ${conn.peer}: ${nickname}`,
+							);
 							conn.send({
 								type: "playerJoined",
-								payload: { 
-									peerId: id, 
-									nickname 
+								payload: {
+									peerId: id,
+									nickname,
 								},
 							});
 						}
-						
+
 						// Then trigger the playerJoined event for the UI to update
 						this.events.onPlayerJoined(conn.peer);
-						
+
 						// Finally notify all other connected peers about the new player
 						this.broadcastNewPlayer(conn.peer);
 					});
@@ -192,20 +197,20 @@ export class NetworkManager {
 					this.connections.set(hostId, connection);
 					this.setupConnectionHandlers(connection);
 					this.events.onConnected(hostId);
-					
+
 					// If we have a nickname, send it immediately after connection
 					if (nickname) {
 						console.log(`Sending client nickname to host: ${nickname}`);
 						// Send our nickname to the host
 						connection.send({
 							type: "playerJoined",
-							payload: { 
-								peerId: myId, 
-								nickname 
+							payload: {
+								peerId: myId,
+								nickname,
 							},
 						});
 					}
-					
+
 					resolve();
 				});
 
@@ -257,7 +262,7 @@ export class NetworkManager {
 				// Try to retrieve it from the Game class via a callback
 				nickname = this.events.onGetNickname?.();
 			}
-			
+
 			// Initialize as host with the existing server ID and our nickname
 			this.initAsHost(hostId, nickname)
 				.then((id) => {
@@ -281,9 +286,9 @@ export class NetworkManager {
 			if (peerId !== newPeerId && conn.open) {
 				conn.send({
 					type: "playerJoined",
-					payload: { 
-						peerId: newPeerId, 
-						nickname 
+					payload: {
+						peerId: newPeerId,
+						nickname,
 					},
 				});
 			}
@@ -305,11 +310,10 @@ export class NetworkManager {
 				this.events.onPlayerInputReceived(payload, clientId);
 			} else if (message.type === "playerJoined") {
 				const payload = message.payload as PlayerJoinedMessage;
-				console.log(`Received playerJoined message: ${payload.peerId}${payload.nickname ? ` (${payload.nickname})` : ''}`);
-				this.events.onPlayerJoined(
-					payload.peerId,
-					payload.nickname
+				console.log(
+					`Received playerJoined message: ${payload.peerId}${payload.nickname ? ` (${payload.nickname})` : ""}`,
 				);
+				this.events.onPlayerJoined(payload.peerId, payload.nickname);
 			} else if (message.type === "playerLeft") {
 				this.events.onPlayerLeft((message.payload as PlayerLeftMessage).peerId);
 			} else if (message.type === "playerList") {
@@ -441,15 +445,15 @@ export class NetworkManager {
 	// Send host information to a newly connected client
 	public sendHostInfo(nickname: string): void {
 		if (!this.isHost || !this.peer?.id) return;
-		
+
 		// Send to all connected peers
 		for (const conn of this.connections.values()) {
 			if (conn.open) {
 				conn.send({
 					type: "playerJoined",
-					payload: { 
-						peerId: this.peer.id, 
-						nickname 
+					payload: {
+						peerId: this.peer.id,
+						nickname,
 					},
 				});
 				console.log("Sent host info to client with nickname:", nickname);
@@ -460,15 +464,15 @@ export class NetworkManager {
 	// Method to broadcast that a new player has joined with their nickname
 	public sendPlayerJoined(nickname: string): void {
 		if (!this.peer || !this.peer.id) return;
-		
+
 		// Send to all connected peers
 		for (const conn of this.connections.values()) {
 			if (conn.open) {
 				conn.send({
 					type: "playerJoined",
-					payload: { 
-						peerId: this.peer.id || "unknown", 
-						nickname 
+					payload: {
+						peerId: this.peer.id || "unknown",
+						nickname,
 					},
 				});
 			}
@@ -478,29 +482,29 @@ export class NetworkManager {
 	// Method to broadcast current player list to all connected clients
 	public broadcastPlayerList(nicknames: Record<string, string>): void {
 		if (!this.isHost) return; // Only host should broadcast the full list
-		
+
 		const peerIds = Array.from(this.connections.keys());
-		
+
 		// Add the host's own ID to the list
 		if (this.peer?.id) {
 			peerIds.push(this.peer.id);
 		}
-		
+
 		const message: NetworkMessage = {
 			type: "playerList",
 			payload: {
 				peerIds,
-				nicknames
-			}
+				nicknames,
+			},
 		};
-		
+
 		// Send to all connected peers
 		for (const conn of this.connections.values()) {
 			if (conn.open) {
 				conn.send(message);
 			}
 		}
-		
+
 		console.log("Broadcasted player list to all clients:", message.payload);
 	}
 }

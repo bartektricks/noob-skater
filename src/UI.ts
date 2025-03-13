@@ -7,6 +7,8 @@ export class UI {
 	private notificationDisplay: HTMLDivElement;
 	private notificationTimeout: number | null = null;
 	private connectionStatusDisplay: HTMLDivElement;
+	private highScoreDisplay!: HTMLDivElement;
+	private currentHighScore = 0;
 	private onExitToMenu: (() => void) | null = null; // Callback for exit button
 	private onResumeGame: (() => void) | null = null; // Callback for resume button
 	private isPauseMenuVisible = false; // Track pause menu visibility
@@ -21,15 +23,18 @@ export class UI {
 		this.createControlsInfo();
 		this.createTrickText();
 		this.createPauseMenu();
+		this.createHighScoreDisplay();
 
 		// Create notification display
 		this.notificationDisplay = document.createElement("div");
-		this.notificationDisplay.className = "fixed top-20 left-1/2 transform -translate-x-1/2 bg-black/80 text-white py-3 px-8 rounded-lg shadow-lg backdrop-blur-sm border border-gray-700 z-50 hidden";
+		this.notificationDisplay.className =
+			"fixed top-20 left-1/2 transform -translate-x-1/2 bg-black/80 text-white py-3 px-8 rounded-lg shadow-lg backdrop-blur-sm border border-gray-700 z-50 hidden";
 		document.body.appendChild(this.notificationDisplay);
 
 		// Create connection status display
 		this.connectionStatusDisplay = document.createElement("div");
-		this.connectionStatusDisplay.className = "fixed top-5 right-5 py-2 px-4 rounded-lg flex items-center gap-2 text-white text-sm font-medium hidden shadow-lg border border-gray-700";
+		this.connectionStatusDisplay.className =
+			"fixed top-5 right-5 py-2 px-4 rounded-lg flex items-center gap-2 text-white text-sm font-medium hidden shadow-lg border border-gray-700";
 		this.connectionStatusDisplay.innerHTML = `
 			<span class="h-2 w-2 rounded-full bg-red-500"></span>
 			Disconnected
@@ -43,13 +48,14 @@ export class UI {
 	 */
 	private checkCameraDebugParam(): boolean {
 		const urlParams = new URLSearchParams(window.location.search);
-		return urlParams.get('debug') === 'camera';
+		return urlParams.get("debug") === "camera";
 	}
 
 	private createControlsInfo(): void {
 		// Create controls info container
 		this.controlsElement = document.createElement("div");
-		this.controlsElement.className = "fixed bottom-5 left-5 bg-black/80 text-white py-4 px-6 rounded-lg shadow-lg backdrop-blur-sm border border-gray-700";
+		this.controlsElement.className =
+			"fixed bottom-5 left-5 bg-black/80 text-white py-4 px-6 rounded-lg shadow-lg backdrop-blur-sm border border-gray-700";
 
 		// Set controls to be initially visible
 		this.isControlsVisible = true;
@@ -90,18 +96,21 @@ export class UI {
 
 		// Create a floating toggle button that remains visible even when controls are hidden
 		const toggleButton = document.createElement("button");
-		toggleButton.className = "fixed bottom-5 left-5 bg-red-600 hover:bg-red-700 text-white px-4 py-2 rounded-lg shadow-lg border border-red-700 z-10 font-medium";
+		toggleButton.className =
+			"fixed bottom-5 left-5 bg-red-600 hover:bg-red-700 text-white px-4 py-2 rounded-lg shadow-lg border border-red-700 z-10 font-medium";
 		toggleButton.textContent = "Controls";
 		toggleButton.style.display = "none"; // Initially hidden since controls are visible
 
 		document.body.appendChild(toggleButton);
 
 		// Add event listener to the toggle button inside the controls panel
-		document.getElementById("toggle-controls-button")?.addEventListener("click", () => {
-			this.isControlsVisible = false;
-			this.controlsElement.classList.add("hidden");
-			toggleButton.style.display = "block";
-		});
+		document
+			.getElementById("toggle-controls-button")
+			?.addEventListener("click", () => {
+				this.isControlsVisible = false;
+				this.controlsElement.classList.add("hidden");
+				toggleButton.style.display = "block";
+			});
 
 		// Add event listener to the floating toggle button
 		toggleButton.addEventListener("click", () => {
@@ -156,21 +165,28 @@ export class UI {
 		// Create trick text element
 		// Create trick display
 		this.trickDisplay = document.createElement("div");
-		this.trickDisplay.className = "fixed bottom-1/5 left-1/2 transform -translate-x-1/2 text-yellow-400 text-center font-bold text-2xl pointer-events-none";
+		this.trickDisplay.className =
+			"fixed bottom-1/5 left-1/2 transform -translate-x-1/2 text-yellow-400 text-center font-bold text-2xl pointer-events-none";
 		this.trickDisplay.style.opacity = "0";
 		this.trickDisplay.style.transition = "all 0.5s ease-out";
 		document.body.appendChild(this.trickDisplay);
 	}
 
-	public showTrickText(text: string): void {
-		// Display the trick text
-		this.trickDisplay.textContent = text;
+	public showTrickText(text: string, score = 0, shouldFadeOut = false): void {
+		// Display the trick text with score
+		this.trickDisplay.innerHTML = `
+			<div>${text}</div>
+			${score > 0 ? `<div class="text-green-400 text-xl mt-1">Score: ${score}</div>` : ""}
+		`;
 		this.trickDisplay.style.opacity = "1";
 
-		// Hide after a delay
-		setTimeout(() => {
-			this.trickDisplay.style.opacity = "0";
-		}, 1000);
+		// Only set timeout to hide if shouldFadeOut is true
+		if (shouldFadeOut) {
+			// Hide after a delay
+			setTimeout(() => {
+				this.trickDisplay.style.opacity = "0";
+			}, 1000);
+		}
 	}
 
 	public update(): void {
@@ -198,7 +214,10 @@ export class UI {
 			this.notificationDisplay.classList.add("animate-fadeOut");
 			setTimeout(() => {
 				this.notificationDisplay.classList.add("hidden");
-				this.notificationDisplay.classList.remove("animate-fadeIn", "animate-fadeOut");
+				this.notificationDisplay.classList.remove(
+					"animate-fadeIn",
+					"animate-fadeOut",
+				);
 			}, 500);
 			this.notificationTimeout = null;
 		}, duration);
@@ -209,7 +228,8 @@ export class UI {
 		status: "connected" | "disconnected" | "connecting" | "local",
 	): void {
 		// Update status display
-		this.connectionStatusDisplay.className = "fixed top-5 right-5 py-2 px-4 rounded-lg flex items-center gap-2 text-white text-sm font-medium bg-black/80 border border-gray-700 shadow-lg backdrop-blur-sm";
+		this.connectionStatusDisplay.className =
+			"fixed top-5 right-5 py-2 px-4 rounded-lg flex items-center gap-2 text-white text-sm font-medium bg-black/80 border border-gray-700 shadow-lg backdrop-blur-sm";
 
 		if (status === "connected") {
 			// For connected status, we'll initially set this but updateConnectedPlayers
@@ -244,7 +264,7 @@ export class UI {
 		playerCount: number,
 		playerIds: string[],
 		isOnlineMode = true,
-		playerNicknames: Record<string, string> = {}
+		playerNicknames: Record<string, string> = {},
 	): void {
 		if (!this.connectedPlayersElement) return;
 
@@ -257,12 +277,16 @@ export class UI {
 				this.connectedPlayersElement.innerHTML = `
 					<div class="text-gray-300 font-bold mb-3">Connected Players (${playerCount})</div>
 					<div class="flex flex-wrap justify-center gap-3">
-						${playerIds.map(id => `
+						${playerIds
+							.map(
+								(id) => `
 							<div class="py-2 px-4 bg-gray-900/70 rounded-full text-sm border border-gray-700">
 								<span class="inline-block h-2 w-2 rounded-full bg-green-500 mr-2"></span>
 								${playerNicknames[id] || id.substring(0, 8)}
 							</div>
-						`).join('')}
+						`,
+							)
+							.join("")}
 					</div>
 				`;
 			} else {
@@ -281,7 +305,7 @@ export class UI {
 				this.connectionStatusDisplay.innerHTML = `
 					<span class="h-2 w-2 rounded-full bg-green-500"></span>
 					<span>
-						${playerIds.map(id => playerNicknames[id] || id.substring(0, 8)).join(', ')}
+						${playerIds.map((id) => playerNicknames[id] || id.substring(0, 8)).join(", ")}
 					</span>
 				`;
 			} else {
@@ -306,22 +330,26 @@ export class UI {
 	private createPauseMenu(): void {
 		// Create pause menu container
 		this.pauseMenuElement = document.createElement("div");
-		this.pauseMenuElement.className = "fixed top-0 left-0 w-full h-full bg-black/80 backdrop-blur-sm flex items-center justify-center z-50 hidden";
+		this.pauseMenuElement.className =
+			"fixed top-0 left-0 w-full h-full bg-black/80 backdrop-blur-sm flex items-center justify-center z-50 hidden";
 
 		// Create pause menu content
 		const pauseMenuContent = document.createElement("div");
-		pauseMenuContent.className = "bg-gray-800/90 rounded-xl shadow-2xl p-10 w-[520px] max-w-[90%] text-center text-white border border-gray-700";
+		pauseMenuContent.className =
+			"bg-gray-800/90 rounded-xl shadow-2xl p-10 w-[520px] max-w-[90%] text-center text-white border border-gray-700";
 		this.pauseMenuElement.appendChild(pauseMenuContent);
 
 		// Create pause menu title
 		const title = document.createElement("h2");
-		title.className = "text-4xl font-bold text-red-400 uppercase tracking-wider mb-8 pb-3 border-b border-gray-700";
+		title.className =
+			"text-4xl font-bold text-red-400 uppercase tracking-wider mb-8 pb-3 border-b border-gray-700";
 		title.textContent = "Game Paused";
 		pauseMenuContent.appendChild(title);
 
 		// Create server ID display element (initially hidden)
 		this.serverIdElement = document.createElement("div");
-		this.serverIdElement.className = "mb-8 p-5 bg-gray-900/70 rounded-lg border border-gray-700 hidden";
+		this.serverIdElement.className =
+			"mb-8 p-5 bg-gray-900/70 rounded-lg border border-gray-700 hidden";
 		pauseMenuContent.appendChild(this.serverIdElement);
 
 		// Create connected players section (for multiplayer)
@@ -335,7 +363,8 @@ export class UI {
 
 		// Create resume button
 		const resumeButton = document.createElement("button");
-		resumeButton.className = "bg-green-600 hover:bg-green-700 text-white py-4 px-6 rounded-lg font-bold text-lg transition-colors shadow-lg";
+		resumeButton.className =
+			"bg-green-600 hover:bg-green-700 text-white py-4 px-6 rounded-lg font-bold text-lg transition-colors shadow-lg";
 		resumeButton.textContent = "Resume Game";
 		resumeButton.addEventListener("click", () => {
 			this.togglePauseMenu(false);
@@ -350,7 +379,8 @@ export class UI {
 
 		// Create main menu button
 		const mainMenuButton = document.createElement("button");
-		mainMenuButton.className = "bg-red-600 hover:bg-red-700 text-white py-4 px-6 rounded-lg font-bold text-lg transition-colors shadow-lg mt-2";
+		mainMenuButton.className =
+			"bg-red-600 hover:bg-red-700 text-white py-4 px-6 rounded-lg font-bold text-lg transition-colors shadow-lg mt-2";
 		mainMenuButton.textContent = "Back to Main Menu";
 		mainMenuButton.addEventListener("click", () => {
 			// First toggle the pause menu to hide it
@@ -381,13 +411,15 @@ export class UI {
 		}
 
 		if (this.isPauseMenuVisible) {
-			this.pauseMenuElement.className = "fixed top-0 left-0 w-full h-full bg-black/80 backdrop-blur-sm flex items-center justify-center z-50";
+			this.pauseMenuElement.className =
+				"fixed top-0 left-0 w-full h-full bg-black/80 backdrop-blur-sm flex items-center justify-center z-50";
 			// Hide the exit button when pause menu is visible
 			if (this.exitButtonElement) {
 				this.exitButtonElement.style.display = "none";
 			}
 		} else {
-			this.pauseMenuElement.className = "fixed top-0 left-0 w-full h-full bg-black/80 backdrop-blur-sm flex items-center justify-center z-50 hidden";
+			this.pauseMenuElement.className =
+				"fixed top-0 left-0 w-full h-full bg-black/80 backdrop-blur-sm flex items-center justify-center z-50 hidden";
 			// Show the exit button when pause menu is hidden
 			if (this.exitButtonElement) {
 				this.exitButtonElement.style.display = "block";
@@ -415,7 +447,10 @@ export class UI {
 	 * @param serverId The server ID to display
 	 * @param isTakeover Whether this server was taken over from a previous host
 	 */
-	public setServerIdInPauseMenu(serverId: string | null, isTakeover = false): void {
+	public setServerIdInPauseMenu(
+		serverId: string | null,
+		isTakeover = false,
+	): void {
 		if (serverId) {
 			const serverIdString = serverId.substring(0, 6);
 
@@ -441,7 +476,8 @@ export class UI {
 			const copyButton = document.getElementById("copy-server-id");
 			if (copyButton) {
 				copyButton.addEventListener("click", () => {
-					navigator.clipboard.writeText(serverId)
+					navigator.clipboard
+						.writeText(serverId)
 						.then(() => {
 							this.showNotification("Server ID copied to clipboard");
 						})
@@ -462,5 +498,26 @@ export class UI {
 	public setResumeGameCallback(callback: () => void): void {
 		console.log("Resume game callback registered");
 		this.onResumeGame = callback;
+	}
+
+	private createHighScoreDisplay(): void {
+		this.highScoreDisplay = document.createElement("div");
+		this.highScoreDisplay.className =
+			"fixed top-5 left-5 bg-black/80 text-white py-2 px-4 rounded-lg shadow-lg backdrop-blur-sm border border-gray-700";
+		this.highScoreDisplay.innerHTML = `
+			<div class="text-sm font-medium text-gray-400">High Score</div>
+			<div class="text-2xl font-bold text-yellow-400">0</div>
+		`;
+		document.body.appendChild(this.highScoreDisplay);
+	}
+
+	public updateHighScore(score: number): void {
+		if (score > this.currentHighScore) {
+			this.currentHighScore = score;
+			this.highScoreDisplay.innerHTML = `
+				<div class="text-sm font-medium text-gray-400">High Score</div>
+				<div class="text-2xl font-bold text-yellow-400">${this.currentHighScore}</div>
+			`;
+		}
 	}
 }

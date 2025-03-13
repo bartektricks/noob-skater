@@ -25,6 +25,15 @@ export class Skateboard {
 	private wheels: THREE.Mesh[] = [];
 	private keys: { [key: string]: boolean } = {};
 
+	// Combo system properties
+	private currentCombo: string[] = [];
+	private comboMultiplier = 1;
+	private lastTrickTime = 0;
+	private comboTimeout = 2000; // 2 seconds to continue combo after landing
+	private isInCombo = false;
+	private grindStartTime = 0;
+	private baseGrindScore = 25;
+
 	// Jumping physics variables
 	private verticalVelocity = 0;
 	private gravity = 0.015;
@@ -230,14 +239,9 @@ export class Skateboard {
 		this._isGrounded = false;
 		this.canJump = false;
 
-		// Show appropriate trick text based on stance
-		if (this.ui) {
-			if (this.movementFlipped) {
-				this.ui.showTrickText("Fakie Ollie");
-			} else {
-				this.ui.showTrickText("Ollie");
-			}
-		}
+		// Add to combo without showing individual trick
+		const trickName = this.movementFlipped ? "Fakie Ollie" : "Ollie";
+		this.addToCombo(trickName);
 
 		// Speed boost on jump
 		if (Math.abs(this._speed) > 0.05) {
@@ -258,13 +262,43 @@ export class Skateboard {
 		this.flipStartTime = Date.now();
 		this.flipProgress = 0;
 
-		// Show trick text
+		// Add to combo without showing individual trick
+		const trickName = this.movementFlipped ? "Fakie 360 Flip" : "360 Flip";
+		this.addToCombo(trickName);
+	}
+
+	private addToCombo(trickName: string): void {
+		const now = Date.now();
+
+		// If we're on the ground and haven't done a trick for 2 seconds, reset combo
+		if (this._isGrounded && now - this.lastTrickTime > this.comboTimeout) {
+			this.currentCombo = [];
+			this.comboMultiplier = 1;
+			this.isInCombo = false;
+		}
+
+		// Add trick to combo
+		this.currentCombo.push(trickName);
+		this.lastTrickTime = now;
+		this.isInCombo = true;
+
+		// Update combo multiplier based on number of tricks
+		this.comboMultiplier = 1 + (this.currentCombo.length - 1) * 0.5;
+
+		// Calculate total score
+		const baseScore = 100; // Base score per trick
+		const totalScore = Math.floor(
+			baseScore * this.currentCombo.length * this.comboMultiplier,
+		);
+
+		// Show combo text with score
 		if (this.ui) {
-			if (this.movementFlipped) {
-				this.ui.showTrickText("Fakie 360 Flip");
-			} else {
-				this.ui.showTrickText("360 Flip");
-			}
+			const comboText = this.currentCombo.join(" + ");
+			this.ui.showTrickText(
+				`${comboText} (${this.comboMultiplier.toFixed(1)}x)`,
+				totalScore,
+				false,
+			);
 		}
 	}
 
@@ -430,8 +464,20 @@ export class Skateboard {
 			if (this.isDoingFlip && this.flipProgress < 0.9) {
 				// Show bail message
 				if (this.ui) {
-					this.ui.showTrickText("Bail!");
+					this.ui.showTrickText("Bail!", 0, true);
 				}
+
+				// Reset combo and update high score
+				const baseScore = 100; // Base score per trick
+				const totalScore = Math.floor(
+					baseScore * this.currentCombo.length * this.comboMultiplier,
+				);
+				if (this.ui) {
+					this.ui.updateHighScore(totalScore);
+				}
+				this.currentCombo = [];
+				this.comboMultiplier = 1;
+				this.isInCombo = false;
 
 				// Reduce speed significantly due to bail
 				this._speed *= 0.3;
@@ -440,11 +486,11 @@ export class Skateboard {
 			else if (this.isDoingFlip && this.flipProgress >= 0.9) {
 				// Show landed message
 				if (this.ui) {
-					if (this.movementFlipped) {
-						this.ui.showTrickText("Fakie 360 Flip Landed!");
-					} else {
-						this.ui.showTrickText("360 Flip Landed!");
-					}
+					const trickName = this.movementFlipped
+						? "Fakie 360 Flip Landed!"
+						: "360 Flip Landed!";
+					this.ui.showTrickText(trickName);
+					this.addToCombo(trickName);
 				}
 			}
 
@@ -471,8 +517,28 @@ export class Skateboard {
 			this._isGrounded = true;
 
 			// Reset air movement direction to current rotation when landing
-			// (We keep this but will adjust during reorientation)
 			this.airMoveDirection = this.rotation;
+		}
+
+		// Check if combo should end (2 seconds on ground without tricks)
+		if (this._isGrounded && this.isInCombo) {
+			const now = Date.now();
+			if (now - this.lastTrickTime > this.comboTimeout) {
+				// End combo
+				const baseScore = 100; // Base score per trick
+				const totalScore = Math.floor(
+					baseScore * this.currentCombo.length * this.comboMultiplier,
+				);
+				if (this.ui) {
+					this.ui.updateHighScore(totalScore);
+				}
+				this.currentCombo = [];
+				this.comboMultiplier = 1;
+				this.isInCombo = false;
+				if (this.ui) {
+					this.ui.showTrickText("Combo Ended!", totalScore, true);
+				}
+			}
 		}
 
 		// Apply skateboard tilt based on vertical movement and direction
@@ -525,11 +591,6 @@ export class Skateboard {
 			);
 			this.reorientTargetAngle = oppositeDirection;
 			this.movementFlipped = !this.movementFlipped; // Toggle flip state
-
-			// If UI exists, show a trick message
-			if (this.ui) {
-				this.ui.showTrickText(this.movementFlipped ? "Fakie" : "Regular");
-			}
 		} else {
 			// For non-180 rotations, maintain the current stance (fakie or regular)
 			// but align the board with the movement direction
@@ -725,19 +786,11 @@ export class Skateboard {
 		if (this.movementFlipped) {
 			// When in fakie, reverse the expected direction
 			dotProduct *= -1;
-			console.log("In fakie position - reversing grind direction logic");
 		}
 
 		// If dot product is negative, player is approaching opposite to rail direction
 		// So we need to reverse the grind direction
 		const grindDirectionMultiplier = dotProduct < 0 ? -1 : 1;
-
-		console.log("Grind direction analysis:", {
-			isFakie: this.movementFlipped,
-			airMoveDirection: this.airMoveDirection,
-			dotProduct: dotProduct,
-			directionMultiplier: grindDirectionMultiplier,
-		});
 
 		// Set target rotation based on grind direction and fakie state
 		if (this.movementFlipped) {
@@ -774,20 +827,42 @@ export class Skateboard {
 		// Reset vertical velocity during transition
 		this.verticalVelocity = 0;
 
-		// Show grind text
-		if (this.ui) {
-			// Show appropriate grind text based on stance
-			if (this.movementFlipped) {
-				this.ui.showTrickText("Fakie 50-50 Grind!");
-			} else {
-				this.ui.showTrickText("50-50 Grind!");
-			}
-		}
+		// Start grind timer
+		this.grindStartTime = Date.now();
+
+		// Add to combo without showing individual trick
+		const grindName = this.movementFlipped
+			? "Fakie 50-50 Grind!"
+			: "50-50 Grind!";
+		this.addToCombo(grindName);
 	}
 
 	// Update grinding position along the rail
 	private updateGrinding(delta: number): void {
 		if (!this.currentRail) return;
+
+		// Update grind score based on time
+		const grindDuration = (Date.now() - this.grindStartTime) / 1000; // in seconds
+		const grindScore = Math.floor(
+			this.baseGrindScore * grindDuration * this.comboMultiplier,
+		);
+
+		// Calculate total score including grind
+		const baseScore = 100; // Base score per trick
+		const totalScore = Math.floor(
+			(baseScore * this.currentCombo.length + grindScore) *
+				this.comboMultiplier,
+		);
+
+		// Show combo text with updated score
+		if (this.ui) {
+			const comboText = this.currentCombo.join(" + ");
+			this.ui.showTrickText(
+				`${comboText} (${this.comboMultiplier.toFixed(1)}x)`,
+				totalScore,
+				false,
+			);
+		}
 
 		// Handle grind transition animation
 		if (this.isTransitioningToGrind) {
@@ -928,7 +1003,12 @@ export class Skateboard {
 
 		// Show trick text if jumping off rail
 		if (isJumping && this.ui) {
-			this.ui.showTrickText("Rail Jump!");
+			const baseScore = 100; // Base score per trick
+			const totalScore = Math.floor(
+				baseScore * this.currentCombo.length * this.comboMultiplier,
+			);
+			this.ui.showTrickText("Rail Jump!", totalScore, false);
+			this.addToCombo("Rail Jump");
 		}
 
 		// Set air movement direction to our current rotation

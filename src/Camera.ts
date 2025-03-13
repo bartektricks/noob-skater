@@ -303,8 +303,6 @@ export class Camera {
 		toggleContainer.style.top = "20px";
 		toggleContainer.style.zIndex = "1000";
 
-		
-
 		document.body.appendChild(toggleContainer);
 		document.body.appendChild(this.debugContainer);
 	}
