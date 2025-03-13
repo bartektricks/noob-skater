@@ -57,7 +57,7 @@ export class GameMenu {
 		// Create menu content
 		this.menuContainer = document.createElement("div");
 		this.menuContainer.className =
-			"bg-gray-800/90 rounded-xl shadow-2xl px-10 pb-10 py-6 w-full max-w-3/6 text-center text-white backdrop-blur-sm border border-gray-700 max-h-[95dvh] overflow-y-auto";
+			"bg-gray-800/90 rounded-xl shadow-2xl px-10 pb-10 py-6 w-full max-w-140 text-center text-white backdrop-blur-sm border border-gray-700 max-h-[95dvh] overflow-y-auto";
 
 		// Create form
 		const form = document.createElement("form");
