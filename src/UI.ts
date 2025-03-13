@@ -296,15 +296,15 @@ export class UI {
 					<div class="text-gray-300 font-bold mb-3">Connected Players (${playerCount})</div>
 					<div class="flex flex-wrap justify-center gap-3">
 						${playerIds
-						.map(
-							(id) => `
+							.map(
+								(id) => `
 							<div class="py-2 px-4 bg-gray-900/70 rounded-full text-sm border border-gray-700">
 								<span class="inline-block h-2 w-2 rounded-full bg-green-500 mr-2"></span>
 								${playerNicknames[id] || id.substring(0, 8)}
 							</div>
 						`,
-						)
-						.join("")}
+							)
+							.join("")}
 					</div>
 				`;
 			} else {
@@ -584,8 +584,7 @@ export class UI {
 
 		// Create chat input area
 		const chatInputContainer = document.createElement("div");
-		chatInputContainer.className =
-			"p-3 border-t border-gray-700 flex gap-2";
+		chatInputContainer.className = "p-3 border-t border-gray-700 flex gap-2";
 
 		this.chatInput = document.createElement("input");
 		this.chatInput.className =
@@ -659,11 +658,21 @@ export class UI {
 	/**
 	 * Add a chat message to the display
 	 */
-	public addChatMessage(senderId: string, senderName: string, message: string, isMe = false): void {
-		console.log(`UI: Adding chat message from ${isMe ? "me" : senderName} (${senderId}): ${message}`);
+	public addChatMessage(
+		senderId: string,
+		senderName: string,
+		message: string,
+		isMe = false,
+	): void {
+		console.log(
+			`UI: Adding chat message from ${isMe ? "me" : senderName} (${senderId}): ${message}`,
+		);
 
 		// Create a timestamp display
-		const timestamp = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+		const timestamp = new Date().toLocaleTimeString([], {
+			hour: "2-digit",
+			minute: "2-digit",
+		});
 
 		const messageElement = document.createElement("div");
 		messageElement.className = isMe
@@ -671,7 +680,8 @@ export class UI {
 			: "bg-gray-700 text-white p-3 rounded-lg self-start max-w-[80%] mb-3 shadow-md";
 
 		const headerElement = document.createElement("div");
-		headerElement.className = "flex justify-between items-center mb-1 text-xs gap-1";
+		headerElement.className =
+			"flex justify-between items-center mb-1 text-xs gap-1";
 
 		const nameElement = document.createElement("span");
 		nameElement.className = "font-bold";
@@ -716,7 +726,8 @@ export class UI {
 			// Show a brief reminder about the chat key if this is the first message
 			if (this.unreadCount === 1) {
 				const reminderElement = document.createElement("div");
-				reminderElement.className = "bg-blue-800 text-white text-xs p-2 rounded-lg text-center my-3";
+				reminderElement.className =
+					"bg-blue-800 text-white text-xs p-2 rounded-lg text-center my-3";
 				reminderElement.textContent = "Press T to toggle chat";
 				this.chatMessages.appendChild(reminderElement);
 

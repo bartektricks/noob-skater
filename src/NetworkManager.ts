@@ -340,17 +340,21 @@ export class NetworkManager {
 			} else if (message.type === "chatMessage") {
 				// Chat message received
 				const payload = message.payload as ChatMessage;
-				console.log(`Received chat message over network from ${payload.senderNickname}: ${payload.message}`);
-				
+				console.log(
+					`Received chat message over network from ${payload.senderNickname}: ${payload.message}`,
+				);
+
 				// IMPORTANT: Always process the message locally first
 				if (this.events.onChatMessageReceived) {
 					// This is an incoming message from someone else, so we should always display it
 					this.events.onChatMessageReceived(payload);
 				}
-				
+
 				// If we're the host, relay this message to all other clients
 				if (this.isHost) {
-					console.log(`Host: Relaying chat message from ${payload.senderNickname} to all other clients`);
+					console.log(
+						`Host: Relaying chat message from ${payload.senderNickname} to all other clients`,
+					);
 					for (const conn of this.connections.values()) {
 						// Don't send back to original sender
 						if (conn.peer !== connection.peer && conn.open) {
@@ -561,7 +565,9 @@ export class NetworkManager {
 	}
 
 	// Register handler for chat messages
-	public registerChatMessageHandler(handler: (message: ChatMessage) => void): void {
+	public registerChatMessageHandler(
+		handler: (message: ChatMessage) => void,
+	): void {
 		console.log("Chat message handler registered");
 		this.events.onChatMessageReceived = handler;
 	}
@@ -573,14 +579,16 @@ export class NetworkManager {
 			payload: message,
 		};
 
-		console.log(`Sending chat message to peers: ${message.message} (isHost: ${this.isHost}, senderId: ${message.senderId})`);
-		
+		console.log(
+			`Sending chat message to peers: ${message.message} (isHost: ${this.isHost}, senderId: ${message.senderId})`,
+		);
+
 		// If we're not connected to anyone, just log a warning
 		if (this.connections.size === 0) {
 			console.warn("Cannot send chat message - not connected to any peers");
 			return;
 		}
-		
+
 		// Regardless of host status, send the message to all connections
 		// This ensures everyone gets the message
 		if (this.isHost) {
@@ -603,7 +611,7 @@ export class NetworkManager {
 					break; // Only send to the host
 				}
 			}
-			
+
 			if (!sentToHost) {
 				console.warn("Failed to send message to host - no open connection");
 			}

@@ -690,16 +690,22 @@ export class Game {
 				const myPeerId = this.networkManager?.getMyPeerId();
 
 				// Always log the message for debugging
-				console.log(`Received chat message: sender=${message.senderId}, myPeerId=${myPeerId}, message=${message.message}`);
+				console.log(
+					`Received chat message: sender=${message.senderId}, myPeerId=${myPeerId}, message=${message.message}`,
+				);
 
 				// Only process if it's from someone else (not our own message being echoed back)
 				if (message.senderId !== myPeerId) {
-					console.log(`Displaying remote message from ${message.senderNickname}`);
+					console.log(
+						`Displaying remote message from ${message.senderNickname}`,
+					);
 					this.handleChatMessage(message, false);
 				} else {
-					console.log(`Ignoring own message that was relayed back: ${message.message}`);
+					console.log(
+						`Ignoring own message that was relayed back: ${message.message}`,
+					);
 				}
-			}
+			},
 		};
 
 		// Initialize network manager
@@ -785,9 +791,12 @@ export class Game {
 
 			// Setup the chat message callback first before initializing to ensure we don't miss any messages
 			this.chatManager.setMessageCallback((message: ChatMessage) => {
-				console.log(`Message callback from ChatManager, message: ${message.message} from ${message.senderNickname}`);
+				console.log(
+					`Message callback from ChatManager, message: ${message.message} from ${message.senderNickname}`,
+				);
 				// This determines if this is our own message that we sent
-				const isOwnMessage = message.senderId === this.networkManager?.getMyPeerId();
+				const isOwnMessage =
+					message.senderId === this.networkManager?.getMyPeerId();
 				this.handleChatMessage(message, isOwnMessage);
 			});
 
@@ -889,20 +898,24 @@ export class Game {
 			});
 
 			// Create a canvas texture for the nickname text
-			const canvas = document.createElement('canvas');
-			const context = canvas.getContext('2d');
+			const canvas = document.createElement("canvas");
+			const context = canvas.getContext("2d");
 			canvas.width = 256;
 			canvas.height = 64;
 
 			if (context) {
 				context.fillStyle = `#${this.getPeerColor(peerId).toString(16)}70`;
 				context.fillRect(0, 0, canvas.width, canvas.height);
-				context.font = 'Bold 24px Arial';
-				context.textAlign = 'center';
-				context.fillStyle = '#ffffff';
+				context.font = "Bold 24px Arial";
+				context.textAlign = "center";
+				context.fillStyle = "#ffffff";
 				// Use player nickname if available, otherwise fallback to ID
 				const playerNickname = this.playerNicknames[peerId] || peerId.slice(-4);
-				context.fillText(playerNickname, canvas.width / 2, canvas.height / 2 + 8);
+				context.fillText(
+					playerNickname,
+					canvas.width / 2,
+					canvas.height / 2 + 8,
+				);
 			}
 
 			// Create a sprite with the text texture
@@ -1175,7 +1188,7 @@ export class Game {
 			// Calculate distance to target for each axis separately
 			const horizontalDistance = Math.sqrt(
 				(currentPosition.x - predictedPosition.x) ** 2 +
-				(currentPosition.z - predictedPosition.z) ** 2,
+					(currentPosition.z - predictedPosition.z) ** 2,
 			);
 
 			const verticalDistance = Math.abs(
@@ -1689,19 +1702,24 @@ export class Game {
 	 * Handle an incoming chat message
 	 */
 	private handleChatMessage(message: ChatMessage, isOwnMessage: boolean): void {
-		console.log(`Game: Handling chat message from ${message.senderNickname}: "${message.message}" (isOwnMessage: ${isOwnMessage})`);
+		console.log(
+			`Game: Handling chat message from ${message.senderNickname}: "${message.message}" (isOwnMessage: ${isOwnMessage})`,
+		);
 
 		// Add message to UI
 		this.ui.addChatMessage(
 			message.senderId,
 			message.senderNickname,
 			message.message,
-			isOwnMessage
+			isOwnMessage,
 		);
 
 		// Show a notification if it's not our own message
 		if (!isOwnMessage) {
-			this.ui.showNotification(`${message.senderNickname}: ${message.message}`, 3000);
+			this.ui.showNotification(
+				`${message.senderNickname}: ${message.message}`,
+				3000,
+			);
 
 			// Also play a sound for notifications (if we add one later)
 			// this.playNotificationSound();
