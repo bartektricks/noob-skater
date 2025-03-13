@@ -96,7 +96,7 @@ export class NetworkManager {
 				peerId = `noobskater-${randomId}`;
 				console.log("Generated random ID for host:", peerId);
 			}
-			
+
 			this.peer = new Peer(peerId);
 
 			this.peer.on("open", (id) => {
@@ -169,15 +169,18 @@ export class NetworkManager {
 			// Handle peer error - this is called when the host can't be found or connected to
 			this.peer.on("error", (err) => {
 				console.error("PeerJS client error:", err);
-				
+
 				// Check if this is a connection error to the host (server not found)
-				if (err.type === "peer-unavailable" || err.message?.includes("Could not connect to peer")) {
+				if (
+					err.type === "peer-unavailable" ||
+					err.message?.includes("Could not connect to peer")
+				) {
 					console.log("Host unavailable, attempting to take over as host...");
-					
+
 					// Clean up the failed client connection
 					this.peer?.destroy();
 					this.peer = null;
-					
+
 					// Attempt to become the host with the same ID
 					this.attemptHostTakeover(hostId)
 						.then(() => {

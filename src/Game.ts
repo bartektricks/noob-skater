@@ -101,7 +101,7 @@ export class Game {
 			console.log("Exit callback triggered");
 			this.returnToMainMenu();
 		});
-		
+
 		// Connect the resume button to the resumeGame method
 		this.ui.setResumeGameCallback(() => {
 			console.log("Resume callback triggered");
@@ -169,7 +169,7 @@ export class Game {
 				// If game is already paused but pause menu is visible, hide it and resume
 				if (this.ui.getIsPauseMenuVisible()) {
 					this.ui.togglePauseMenu(false);
-					
+
 					// Resume the game properly
 					this.resumeGame();
 				} else {
@@ -231,13 +231,13 @@ export class Game {
 	 */
 	private async returnToMainMenu(): Promise<void> {
 		console.log("Returning to main menu...");
-		
+
 		// Hide pause menu if it's open
 		this.ui.togglePauseMenu(false);
 
 		// Stop the game
 		this.isGameRunning = false;
-		
+
 		// Clean up the online server if needed
 		await this.cleanupOnlineServer();
 
@@ -262,7 +262,7 @@ export class Game {
 			this.networkManager.disconnect();
 			this.networkManager = null;
 		}
-		
+
 		// Reset multiplayer state
 		this.isMultiplayer = false;
 		this.isHost = false;
@@ -288,17 +288,20 @@ export class Game {
 		this.gameMenu.show();
 		console.log("Game menu should now be visible");
 	}
-	
+
 	private async cleanupOnlineServer(): Promise<void> {
 		// Only cleanup if we were in online mode, were the host, and have a server ID
 		if (this.isOnlineMode && this.isHost && this.serverId) {
 			try {
 				// Import dynamically to avoid circular dependencies
-				const { removeServer } = await import('./supabase');
+				const { removeServer } = await import("./supabase");
 				const success = await removeServer(this.serverId);
-				
+
 				if (success) {
-					console.log("Successfully removed server from database:", this.serverId);
+					console.log(
+						"Successfully removed server from database:",
+						this.serverId,
+					);
 				} else {
 					console.warn("Failed to remove server from database:", this.serverId);
 				}
@@ -322,7 +325,7 @@ export class Game {
 			// New game start
 			this.playerNickname = options.nickname;
 			this.isGameRunning = true;
-			
+
 			// Set server properties
 			this.isOnlineMode = options.isOnlineMode;
 			this.serverName = options.serverName || null;
@@ -336,12 +339,12 @@ export class Game {
 
 			// Start the clock
 			this.clock.start();
-			
+
 			// If we're in online mode and have a server ID, set it in the UI
 			if (this.isOnlineMode && this.serverId) {
 				this.ui.setServerIdInPauseMenu(this.serverId);
 			}
-			
+
 			// Make sure the skateboard is visible
 			this.skateboard.mesh.visible = true;
 		} else {
@@ -355,9 +358,12 @@ export class Game {
 		this.isHost = options.peerRole === "host";
 
 		console.log("Setting up multiplayer as:", this.isHost ? "HOST" : "CLIENT");
-		
+
 		if (this.isOnlineMode) {
-			console.log("Online mode:", this.isHost ? "Creating server" : "Joining server");
+			console.log(
+				"Online mode:",
+				this.isHost ? "Creating server" : "Joining server",
+			);
 			if (this.serverName) {
 				console.log("Server name:", this.serverName);
 			}
@@ -395,25 +401,25 @@ export class Game {
 					this.ui.updateConnectedPlayers(peers.length, peers);
 				}
 			},
-			
+
 			onHostTakeover: (hostId) => {
 				console.log(`Successfully took over as host with ID: ${hostId}`);
-				
+
 				// Update state to reflect we're now the host
 				this.isHost = true;
 				this.hostConnectionCode = hostId;
-				
+
 				// Store our peer ID as the host
 				this.peer = { id: hostId };
-				
+
 				// Update the UI
 				this.ui.showNotification("Host unavailable. You are now the host!");
-				
+
 				// If we have a server name, keep it; otherwise generate a generic one
 				if (!this.serverName) {
 					this.serverName = "Inherited Server";
 				}
-				
+
 				// Update the server ID in the UI with the takeover flag
 				if (this.isOnlineMode && this.serverId) {
 					this.ui.setServerIdInPauseMenu(this.serverId, true);
@@ -421,7 +427,7 @@ export class Game {
 					this.serverId = hostId;
 					this.ui.setServerIdInPauseMenu(hostId, true);
 				}
-				
+
 				// Initialize player list with empty array
 				this.ui.updateConnectedPlayers(0, []);
 			},
@@ -537,7 +543,7 @@ export class Game {
 					const peers = this.networkManager.getConnectedPeers();
 					this.ui.updateConnectedPlayers(peers.length, peers);
 				}
-			}
+			},
 		};
 
 		// Initialize network manager
@@ -546,14 +552,15 @@ export class Game {
 		if (this.isHost) {
 			// Initialize as host
 			console.log("Initializing as host...");
-			
+
 			// If in online mode and we have a server ID, use it as the peer ID
-			const customId = this.isOnlineMode && this.serverId ? this.serverId : undefined;
-			
+			const customId =
+				this.isOnlineMode && this.serverId ? this.serverId : undefined;
+
 			if (customId) {
 				console.log("Using Supabase server ID as peer ID:", customId);
 			}
-			
+
 			this.networkManager
 				.initAsHost(customId)
 				.then((id) => {
@@ -591,7 +598,9 @@ export class Game {
 				})
 				.catch((err) => {
 					console.error("Failed to connect to host:", err);
-					this.ui.showNotification(`Failed to connect: ${err.message || "unknown error"}`);
+					this.ui.showNotification(
+						`Failed to connect: ${err.message || "unknown error"}`,
+					);
 					this.ui.showConnectionStatus("disconnected");
 				});
 		} else {
@@ -824,19 +833,19 @@ export class Game {
 			// Update trick state if provided
 			if (skateboardState.trickState) {
 				const localTrickState = remotePlayer.skateboard.getTrickState();
-				
+
 				// Handle flip animation
 				if (skateboardState.trickState.isDoingFlip) {
 					if (!localTrickState.isDoingFlip) {
 						// Remote player just started a flip
 						console.log("Remote player started flip");
-						
+
 						// Create a new trick state with local timing for smooth animation
 						const newTrickState = {
 							...localTrickState,
 							isDoingFlip: true,
 							flipStartTime: Date.now(),
-							flipProgress: 0
+							flipProgress: 0,
 						};
 						remotePlayer.skateboard.setTrickState(newTrickState);
 					} else if (skateboardState.trickState.flipProgress !== undefined) {
@@ -844,7 +853,7 @@ export class Game {
 						// But don't update flipStartTime to avoid animation jumps
 						const newTrickState = {
 							...localTrickState,
-							flipProgress: skateboardState.trickState.flipProgress
+							flipProgress: skateboardState.trickState.flipProgress,
 						};
 						remotePlayer.skateboard.setTrickState(newTrickState);
 					}
@@ -853,7 +862,7 @@ export class Game {
 					const newTrickState = {
 						...localTrickState,
 						isDoingFlip: false,
-						flipProgress: 1.0
+						flipProgress: 1.0,
 					};
 					remotePlayer.skateboard.setTrickState(newTrickState);
 					remotePlayer.skateboard.mesh.rotation.z = 0; // Reset flip rotation
@@ -885,10 +894,10 @@ export class Game {
 
 		for (const remotePlayer of this.remotePlayers.values()) {
 			const skateboard = remotePlayer.skateboard;
-			
+
 			// Update the flip animation directly if needed
 			this.updateRemoteFlipAnimation(skateboard);
-			
+
 			// Get current position and rotation
 			const currentPosition = skateboard.mesh.position;
 			const currentRotation = skateboard.mesh.rotation;
@@ -1334,8 +1343,8 @@ export class Game {
 			trickState: {
 				isDoingFlip: this.skateboard.getTrickState().isDoingFlip,
 				flipStartTime: this.skateboard.getTrickState().flipStartTime,
-				flipProgress: this.skateboard.getTrickState().flipProgress
-			}
+				flipProgress: this.skateboard.getTrickState().flipProgress,
+			},
 		};
 
 		if (this.isHost) {
@@ -1359,8 +1368,8 @@ export class Game {
 							trickState: {
 								isDoingFlip: trickState.isDoingFlip,
 								flipStartTime: trickState.flipStartTime,
-								flipProgress: trickState.flipProgress
-							}
+								flipProgress: trickState.flipProgress,
+							},
 						},
 					};
 				});
@@ -1388,8 +1397,8 @@ export class Game {
 					trickState: {
 						isDoingFlip: this.skateboard.getTrickState().isDoingFlip,
 						flipStartTime: this.skateboard.getTrickState().flipStartTime,
-						flipProgress: this.skateboard.getTrickState().flipProgress
-					}
+						flipProgress: this.skateboard.getTrickState().flipProgress,
+					},
 				},
 				otherPlayers,
 				timestamp: now,
@@ -1426,43 +1435,43 @@ export class Game {
 	// Add a specialized method to handle remote skateboard flip animations
 	private updateRemoteFlipAnimation(skateboard: Skateboard): void {
 		const trickState = skateboard.getTrickState();
-		
+
 		if (trickState.isDoingFlip) {
 			// There are two ways to update the flip:
 			// 1. If flipProgress is provided directly, use it (from network)
 			// 2. Otherwise, calculate based on time (for smooth local animation)
-			
+
 			let flipProgress = trickState.flipProgress || 0;
-			
+
 			// If we have a start time, calculate progress based on time for smooth animation
 			if (trickState.flipStartTime) {
 				const currentTime = Date.now();
 				const elapsedTime = currentTime - trickState.flipStartTime;
 				const flipDuration = 500; // Should match the duration in Skateboard.ts
-				
+
 				// Calculate time-based progress (0 to 1)
 				flipProgress = Math.min(elapsedTime / flipDuration, 1);
-				
+
 				// Update the progress in the trick state
 				if (flipProgress !== trickState.flipProgress) {
 					const newTrickState = {
 						...trickState,
-						flipProgress: flipProgress
+						flipProgress: flipProgress,
 					};
 					skateboard.setTrickState(newTrickState);
 				}
 			}
-			
+
 			// Apply 360-degree rotation around z-axis directly to the mesh
 			skateboard.mesh.rotation.z = Math.PI * 2 * flipProgress;
-			
+
 			// Check if flip is complete
 			if (flipProgress >= 1) {
 				// Reset the trick state when done
 				const newTrickState = {
 					...trickState,
 					isDoingFlip: false,
-					flipProgress: 0
+					flipProgress: 0,
 				};
 				skateboard.setTrickState(newTrickState);
 				skateboard.mesh.rotation.z = 0; // Reset z rotation
@@ -1475,10 +1484,10 @@ export class Game {
 	 */
 	private resumeGame(): void {
 		console.log("Resuming game...");
-		
+
 		// Ensure the skateboard is visible
 		this.skateboard.mesh.visible = true;
-		
+
 		// Resume the game
 		this.isGameRunning = true;
 	}

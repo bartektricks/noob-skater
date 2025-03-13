@@ -303,17 +303,8 @@ export class Camera {
 		toggleContainer.style.top = "20px";
 		toggleContainer.style.zIndex = "1000";
 
-		const toggleButton = document.createElement("button");
-		toggleButton.textContent = "Toggle Camera Controls";
-		toggleButton.style.padding = "5px 10px";
-		toggleButton.addEventListener("click", () => {
-			if (this.debugContainer) {
-				this.debugContainer.style.display =
-					this.debugContainer.style.display === "none" ? "block" : "none";
-			}
-		});
+		
 
-		toggleContainer.appendChild(toggleButton);
 		document.body.appendChild(toggleContainer);
 		document.body.appendChild(this.debugContainer);
 	}

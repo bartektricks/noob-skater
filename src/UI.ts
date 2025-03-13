@@ -1,11 +1,9 @@
 export class UI {
 	private controlsElement!: HTMLDivElement;
 	private trickTextElement!: HTMLDivElement;
-	private playerInfoElement!: HTMLDivElement;
 	private exitButtonElement!: HTMLButtonElement;
 	private pauseMenuElement!: HTMLDivElement; // Pause menu container
 	private serverIdElement!: HTMLDivElement; // Element to display server ID
-	private playerNickname = "Player";
 	private trickDisplay: HTMLDivElement;
 	private notificationDisplay: HTMLDivElement;
 	private notificationTimeout: number | null = null;
@@ -14,11 +12,15 @@ export class UI {
 	private onResumeGame: (() => void) | null = null; // Callback for resume button
 	private isPauseMenuVisible = false; // Track pause menu visibility
 	private connectedPlayersElement: HTMLDivElement | null = null;
+	private isControlsVisible = true; // Track controls visibility state
+	private isCameraDebugEnabled = false; // Track if camera debug is enabled
 
 	constructor() {
+		// Check for debug=camera URL parameter
+		this.isCameraDebugEnabled = this.checkCameraDebugParam();
+		
 		this.createControlsInfo();
 		this.createTrickText();
-		this.createPlayerInfo();
 		this.createPauseMenu();
 
 		// Create trick display
@@ -40,28 +42,14 @@ export class UI {
 		`;
 		document.body.appendChild(this.connectionStatusDisplay);
 	}
-
-	private createPlayerInfo(): void {
-		// Create player info container
-		this.playerInfoElement = document.createElement("div");
-		this.playerInfoElement.className = "fixed top-5 left-5 bg-black/80 text-white py-3 px-6 rounded-lg shadow-lg backdrop-blur-sm border border-gray-700";
-		this.updatePlayerInfo();
-		document.body.appendChild(this.playerInfoElement);
-	}
-
-	private updatePlayerInfo(): void {
-		this.playerInfoElement.innerHTML = `
-			<div class="font-bold text-lg mb-1">${this.playerNickname}</div>
-			<div class="text-gray-300 text-sm flex items-center gap-2">
-				<span class="w-2 h-2 rounded-full bg-green-400"></span>
-				Server: Local
-			</div>
-		`;
-	}
-
-	public setPlayerNickname(nickname: string): void {
-		this.playerNickname = nickname;
-		this.updatePlayerInfo();
+	
+	/**
+	 * Check if the camera debug parameter is present in the URL
+	 * @returns boolean Whether the camera debug mode is enabled
+	 */
+	private checkCameraDebugParam(): boolean {
+		const urlParams = new URLSearchParams(window.location.search);
+		return urlParams.get('debug') === 'camera';
 	}
 
 	private createControlsInfo(): void {
@@ -69,9 +57,17 @@ export class UI {
 		this.controlsElement = document.createElement("div");
 		this.controlsElement.className = "fixed bottom-5 left-5 bg-black/80 text-white py-4 px-6 rounded-lg shadow-lg backdrop-blur-sm border border-gray-700";
 
+		// Determine if controls should be visible based on debug parameter
+		if (!this.isCameraDebugEnabled) {
+			this.isControlsVisible = false;
+			this.controlsElement.classList.add("hidden");
+		}
+
 		// Add controls information
 		this.controlsElement.innerHTML = `
-			<div class="mb-3 font-bold text-red-400 text-lg">Controls</div>
+			<div class="flex justify-between items-center mb-3">
+				<div class="font-bold text-red-400 text-lg">Controls</div>
+			</div>
 			<div class="grid grid-cols-2 gap-x-6 gap-y-2 text-gray-200">
 				<div class="flex items-center">
 					<span class="bg-gray-700 rounded px-2 py-0.5 mr-2 text-xs font-mono">W/S</span>
@@ -97,6 +93,47 @@ export class UI {
 		`;
 
 		document.body.appendChild(this.controlsElement);
+	}
+	
+	/**
+	 * Toggle the visibility of the controls panel
+	 * @param show Optional parameter to force show/hide
+	 */
+	public toggleControlsVisibility(show?: boolean): void {
+		// Only operate if camera debug is enabled
+		if (!this.isCameraDebugEnabled) {
+			this.isControlsVisible = false;
+			this.controlsElement.classList.add("hidden");
+			return;
+		}
+		
+		// If show is provided, set the state, otherwise toggle
+		if (show !== undefined) {
+			this.isControlsVisible = show;
+		} else {
+			this.isControlsVisible = !this.isControlsVisible;
+		}
+		
+		// Update visibility
+		if (this.isControlsVisible) {
+			this.controlsElement.classList.remove("hidden");
+		} else {
+			this.controlsElement.classList.add("hidden");
+		}
+	}
+	
+	/**
+	 * Get the current visibility state of controls
+	 */
+	public getControlsVisibility(): boolean {
+		return this.isControlsVisible;
+	}
+	
+	/**
+	 * Check if camera debug mode is enabled
+	 */
+	public isCameraDebugMode(): boolean {
+		return this.isCameraDebugEnabled;
 	}
 
 	private createTrickText(): void {
