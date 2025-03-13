@@ -516,8 +516,11 @@ export class Skateboard {
 			this.verticalVelocity = 0;
 			this._isGrounded = true;
 
-			// Reset air movement direction to current rotation when landing
-			this.airMoveDirection = this.rotation;
+			// Reset air movement direction ONLY if we're not going through reorientation
+			// This prevents the brief forwards/backwards flicker when landing after turning
+			if (!this.isReorienting) {
+				this.airMoveDirection = this.rotation;
+			}
 		}
 
 		// Check if combo should end (2 seconds on ground without tricks)
@@ -584,6 +587,9 @@ export class Skateboard {
 		// Check if we've done approximately a 180-degree turn (between 135 and 225 degrees)
 		const isApprox180 = absDiff > Math.PI * 0.75 && absDiff < Math.PI * 1.25;
 
+		// Store old movement speed direction to prevent flicker during transition
+		const oldSpeedSign = Math.sign(this._speed);
+
 		if (isApprox180) {
 			// We've done a 180-degree turn, so flip the controls
 			const oppositeDirection = this.normalizeAngle(
@@ -591,6 +597,12 @@ export class Skateboard {
 			);
 			this.reorientTargetAngle = oppositeDirection;
 			this.movementFlipped = !this.movementFlipped; // Toggle flip state
+			
+			// Ensure speed direction is consistent with the stance change
+			// This prevents the momentary backwards movement when landing
+			if (Math.abs(this._speed) > 0.01) {
+				this._speed = -oldSpeedSign * Math.abs(this._speed);
+			}
 		} else {
 			// For non-180 rotations, maintain the current stance (fakie or regular)
 			// but align the board with the movement direction
@@ -634,6 +646,12 @@ export class Skateboard {
 			this.isReorienting = false;
 			// Update movement direction to match new rotation
 			this.airMoveDirection = this.rotation;
+			
+			// If on the ground, ensure the movement direction is fully synchronized
+			if (this._isGrounded) {
+				// For consistency, align both directions to ensure smooth control transitions
+				this.airMoveDirection = this.rotation;
+			}
 		}
 	}
 
