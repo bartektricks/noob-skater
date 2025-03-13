@@ -74,13 +74,10 @@ export class Camera {
 		const stance = this.skateboard.getStance();
 
 		if (stance === "fakie") {
-			this.targetCameraAngle = this.normalizeAngle(
-				movementDirection + Math.PI,
-			);
+			this.targetCameraAngle = this.normalizeAngle(movementDirection + Math.PI);
 		} else {
 			this.targetCameraAngle = movementDirection;
 		}
-
 
 		// Calculate shortest path to target angle
 		const angleDiff = this.normalizeAngle(

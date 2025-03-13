@@ -1152,7 +1152,7 @@ export class Game {
 			// Calculate distance to target for each axis separately
 			const horizontalDistance = Math.sqrt(
 				(currentPosition.x - predictedPosition.x) ** 2 +
-				(currentPosition.z - predictedPosition.z) ** 2,
+					(currentPosition.z - predictedPosition.z) ** 2,
 			);
 
 			const verticalDistance = Math.abs(
@@ -1310,11 +1310,8 @@ export class Game {
 		return diff;
 	}
 
-	// Create rails and add them to the scene
 	private createRails(): void {
-		// Clear any existing rails
 		this.rails = [];
-
 
 		const rail1 = new Rail(-40, 20, 40, 20);
 		this.scene.add(rail1.mesh);

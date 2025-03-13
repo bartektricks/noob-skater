@@ -55,7 +55,6 @@ export class Skateboard {
 	private currentRail: Rail | null = null; // Will be set to a Rail instance when grinding
 	private grindSpeed = 0.2;
 	private grindProgress = 0;
-	private railExitVelocity = 0.2; // Speed when exiting rail
 	private rails: Rail[] = []; // Store rails directly in the class
 	private wantsToGrind = false; // Track if player has pressed the grind key
 	private railMagnetismActive = false; // Track if rail magnetism is active
@@ -360,10 +359,7 @@ export class Skateboard {
 			(this.keys.s && !this.movementFlipped) ||
 			(this.keys.w && this.movementFlipped)
 		) {
-			this._speed = Math.max(
-				this._speed - this.acceleration,
-				-this.maxSpeed,
-			);
+			this._speed = Math.max(this._speed - this.acceleration, -this.maxSpeed);
 		} else {
 			// Apply deceleration when no keys are pressed
 			if (this._speed > 0) {
@@ -597,7 +593,7 @@ export class Skateboard {
 			);
 			this.reorientTargetAngle = oppositeDirection;
 			this.movementFlipped = !this.movementFlipped; // Toggle flip state
-			
+
 			// Ensure speed direction is consistent with the stance change
 			// This prevents the momentary backwards movement when landing
 			if (Math.abs(this._speed) > 0.01) {
@@ -609,13 +605,19 @@ export class Skateboard {
 			if (this.movementFlipped) {
 				// In fakie stance: we need to maintain the fakie orientation
 				// We should measure the rotation deviation from the fakie direction (airMoveDirection + Math.PI)
-				const fakieDirection = this.normalizeAngle(this.airMoveDirection + Math.PI);
-				
+				const fakieDirection = this.normalizeAngle(
+					this.airMoveDirection + Math.PI,
+				);
+
 				// Calculate how far we rotated away from our fakie direction
-				const fakieRotationDiff = this.normalizeAngle(this.rotation - fakieDirection);
-				
+				const fakieRotationDiff = this.normalizeAngle(
+					this.rotation - fakieDirection,
+				);
+
 				// Add this small deviation to the fakie direction to maintain relative orientation
-				this.reorientTargetAngle = this.normalizeAngle(fakieDirection + fakieRotationDiff);
+				this.reorientTargetAngle = this.normalizeAngle(
+					fakieDirection + fakieRotationDiff,
+				);
 			} else {
 				// In regular stance: align with movement direction
 				this.reorientTargetAngle = this.airMoveDirection;
@@ -651,7 +653,7 @@ export class Skateboard {
 			this.isReorienting = false;
 			// Update movement direction to match new rotation
 			this.airMoveDirection = this.rotation;
-			
+
 			// If on the ground, ensure the movement direction is fully synchronized
 			if (this._isGrounded) {
 				// For consistency, align both directions to ensure smooth control transitions
@@ -685,7 +687,7 @@ export class Skateboard {
 
 		// Calculate delta, considering the shortest path around the circle
 		let delta = normalizedEndAngle - normalizedStartAngle;
-		
+
 		// Make sure we take the shortest path around the circle
 		if (delta > Math.PI) {
 			delta -= Math.PI * 2;
@@ -729,7 +731,7 @@ export class Skateboard {
 			// Calculate horizontal distance (X and Z only)
 			const horizontalDistance = Math.sqrt(
 				(this.mesh.position.x - closestPoint.x) ** 2 +
-				(this.mesh.position.z - closestPoint.z) ** 2,
+					(this.mesh.position.z - closestPoint.z) ** 2,
 			);
 
 			// Calculate vertical distance (Y only)
@@ -846,12 +848,17 @@ export class Skateboard {
 		// Apply a minimum and maximum cap to the grinding speed for better control
 		const minGrindSpeed = 0.1;
 		const maxGrindSpeed = 0.4;
-		const baseGrindSpeed = Math.max(minGrindSpeed, Math.min(maxGrindSpeed, speedMagnitude));
-		
+		const baseGrindSpeed = Math.max(
+			minGrindSpeed,
+			Math.min(maxGrindSpeed, speedMagnitude),
+		);
+
 		// Apply grind speed with the correct direction based on approach angle
 		this.grindSpeed = baseGrindSpeed * grindDirectionMultiplier;
-		
-		console.log(`Setting grind speed to ${this.grindSpeed} based on previous speed ${this._speed}`);
+
+		console.log(
+			`Setting grind speed to ${this.grindSpeed} based on previous speed ${this._speed}`,
+		);
 
 		// Set initial grind progress based on where we actually hit the rail
 		this.grindProgress = initialProgress;
@@ -891,7 +898,7 @@ export class Skateboard {
 		const baseScore = 100; // Base score per trick
 		const totalScore = Math.floor(
 			(baseScore * this.currentCombo.length + grindScore) *
-			this.comboMultiplier,
+				this.comboMultiplier,
 		);
 
 		// Show combo text with updated score
@@ -1032,10 +1039,10 @@ export class Skateboard {
 
 		// Calculate jump direction based on turning input
 		let jumpDirection = this.rotation;
-		
+
 		// Apply angled jumping based on turning input (A/D keys)
 		const turnAngle = Math.PI / 4; // 45 degrees in radians
-		
+
 		if (isJumping) {
 			// Check if turning keys are pressed to modify jump angle
 			if (this.keys.a) {
@@ -1048,12 +1055,12 @@ export class Skateboard {
 				console.log("Jumping right at 45 degrees");
 			}
 		}
-		
+
 		// Get the direction for the jump based on turning
 		const facingDirection = new THREE.Vector3(
 			Math.sin(jumpDirection),
 			0,
-			Math.cos(jumpDirection)
+			Math.cos(jumpDirection),
 		);
 
 		// Apply upward velocity if jumping off
@@ -1061,31 +1068,33 @@ export class Skateboard {
 			// Stronger vertical velocity when jumping off manually
 			// Now 2x higher than the original value (0.8 * 2 = 1.6)
 			this.verticalVelocity = this.jumpForce * 1.2; // 2x higher for dramatic air
-			
+
 			// Apply an immediate forward impulse to create momentum in the jump
 			// This creates a forward arc that carries the board's grinding momentum
 			const jumpImpulse = Math.abs(this.grindSpeed) * 2; // Scale impulse with grinding speed
-			
+
 			// Add an immediate position change in the direction of movement
 			// This creates the effect of jumping forward off the rail
 			this.mesh.position.x += facingDirection.x * jumpImpulse;
 			this.mesh.position.z += facingDirection.z * jumpImpulse;
-			
+
 			// When turning during jump, also rotate the board slightly in that direction
 			if (this.keys.a) {
 				this.rotation += turnAngle * 0.5; // Partial rotation to match jump direction
 			} else if (this.keys.d) {
 				this.rotation -= turnAngle * 0.5; // Partial rotation to match jump direction
 			}
-			
-			console.log(`Applied jump impulse: ${jumpImpulse} at angle: ${jumpDirection}`);
+
+			console.log(
+				`Applied jump impulse: ${jumpImpulse} at angle: ${jumpDirection}`,
+			);
 		} else {
 			// Small hop when coming off the rail edge
 			// Also 2x higher than original (0.3 * 2 = 0.6)
 			this.verticalVelocity = this.jumpForce * 0.6; // 2x higher auto hop
-			
+
 			// Still apply a small forward impulse when reaching rail end
-			const endImpulse = Math.abs(this.grindSpeed) * 0.8; 
+			const endImpulse = Math.abs(this.grindSpeed) * 0.8;
 			this.mesh.position.x += facingDirection.x * endImpulse;
 			this.mesh.position.z += facingDirection.z * endImpulse;
 		}
