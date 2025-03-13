@@ -176,7 +176,7 @@ export class Game {
 		// Toggle pause menu with ESC
 		if (key === "escape") {
 			const isPauseMenuVisible = this.ui.getIsPauseMenuVisible();
-			
+
 			// If paused, unpause
 			if (isPauseMenuVisible) {
 				this.ui.togglePauseMenu(false);
@@ -184,7 +184,7 @@ export class Game {
 			} else {
 				// Pause the game
 				this.ui.togglePauseMenu(true);
-				
+
 				// If hosting and in online mode, show the server ID in the pause menu
 				if (
 					this.isMultiplayer &&
@@ -196,17 +196,17 @@ export class Game {
 				} else {
 					this.ui.setServerIdInPauseMenu(null);
 				}
-				
+
 				// Make sure to hide chat when opening pause menu
 				this.ui.toggleChat(false);
-				
+
 				// Pause the game
 				this.isGameRunning = false;
 			}
-			
+
 			return;
 		}
-		
+
 		// Toggle chat with T
 		if (key === "t") {
 			this.ui.toggleChat();
@@ -222,47 +222,6 @@ export class Game {
 		// No special handling for multiplayer
 		// Local inputs always control local skateboard
 		// Network synchronization happens separately via position updates
-	}
-
-	// Toggle game menu or return to main menu from game
-	private toggleMenu(): void {
-		// Always ensure the pause menu is hidden when toggling the main menu
-		this.ui.togglePauseMenu(false);
-
-		if (this.isGameRunning) {
-			this.isGameRunning = false;
-
-			if (this.isMultiplayer && this.isHost && this.hostConnectionCode) {
-				this.gameMenu.setPeerCode(this.hostConnectionCode);
-			}
-
-			this.gameMenu.show();
-
-			this.skateboard.mesh.visible = false;
-
-			if (this.remotePlayers.size > 0) {
-				for (const player of this.remotePlayers.values()) {
-					if (player.skateboard?.mesh) {
-						player.skateboard.mesh.visible = false;
-					}
-				}
-			}
-		} else {
-			// Resuming the game - hide menu
-			this.isGameRunning = true;
-			this.gameMenu.hide();
-
-			// Show the skateboard when game is resumed
-			this.skateboard.mesh.visible = true;
-
-			if (this.remotePlayers.size > 0) {
-				for (const player of this.remotePlayers.values()) {
-					if (player.skateboard?.mesh) {
-						player.skateboard.mesh.visible = true;
-					}
-				}
-			}
-		}
 	}
 
 	/**
@@ -729,10 +688,10 @@ export class Game {
 				// This is an incoming message from the network - we should display it
 				// UNLESS it's our own message being relayed back to us
 				const myPeerId = this.networkManager?.getMyPeerId();
-				
+
 				// Always log the message for debugging
 				console.log(`Received chat message: sender=${message.senderId}, myPeerId=${myPeerId}, message=${message.message}`);
-				
+
 				// Only process if it's from someone else (not our own message being echoed back)
 				if (message.senderId !== myPeerId) {
 					console.log(`Displaying remote message from ${message.senderNickname}`);
@@ -823,7 +782,7 @@ export class Game {
 		if (this.networkManager) {
 			console.log("Initializing ChatManager...");
 			this.chatManager = new ChatManager(this.networkManager);
-			
+
 			// Setup the chat message callback first before initializing to ensure we don't miss any messages
 			this.chatManager.setMessageCallback((message: ChatMessage) => {
 				console.log(`Message callback from ChatManager, message: ${message.message} from ${message.senderNickname}`);
@@ -831,10 +790,10 @@ export class Game {
 				const isOwnMessage = message.senderId === this.networkManager?.getMyPeerId();
 				this.handleChatMessage(message, isOwnMessage);
 			});
-			
+
 			// Now initialize the chat manager (which sets up network handlers)
 			this.chatManager.initialize();
-			
+
 			// Set up UI chat callback (when user sends a message through the UI)
 			this.ui.setChatMessageCallback((message: string) => {
 				console.log(`User sent message through UI: ${message}`);
@@ -929,36 +888,30 @@ export class Game {
 				}
 			});
 
-			// Add a player label with their ID
-			const labelGeometry = new THREE.BoxGeometry(1, 0.3, 0.1);
-			const labelMaterial = new THREE.MeshBasicMaterial({
-				color: this.getPeerColor(peerId),
-				transparent: true,
-				opacity: 0.8,
-			});
-			const label = new THREE.Mesh(labelGeometry, labelMaterial);
-			label.position.set(0, 2, 0);
-			remoteSkateboard.mesh.add(label);
+			// Create a canvas texture for the nickname text
+			const canvas = document.createElement('canvas');
+			const context = canvas.getContext('2d');
+			canvas.width = 256;
+			canvas.height = 64;
 
-			// Use HTML to create a floating label
-			const getShortPeerId = (id: string) => {
-				// Extract a short identifier (last 4 characters)
-				return id.slice(-4);
-			};
+			if (context) {
+				context.fillStyle = `#${this.getPeerColor(peerId).toString(16)}70`;
+				context.fillRect(0, 0, canvas.width, canvas.height);
+				context.font = 'Bold 24px Arial';
+				context.textAlign = 'center';
+				context.fillStyle = '#ffffff';
+				// Use player nickname if available, otherwise fallback to ID
+				const playerNickname = this.playerNicknames[peerId] || peerId.slice(-4);
+				context.fillText(playerNickname, canvas.width / 2, canvas.height / 2 + 8);
+			}
 
-			const playerLabel = document.createElement("div");
-			playerLabel.className = "player-label";
-			playerLabel.textContent = `Player ${getShortPeerId(peerId)}`;
-			playerLabel.style.position = "absolute";
-			playerLabel.style.backgroundColor = `#${this.getPeerColor(peerId).toString(16)}`;
-			playerLabel.style.color = "white";
-			playerLabel.style.padding = "2px 5px";
-			playerLabel.style.borderRadius = "3px";
-			playerLabel.style.fontSize = "12px";
-			playerLabel.style.fontWeight = "bold";
-			playerLabel.style.pointerEvents = "none";
-			playerLabel.dataset.peerId = peerId;
-			document.body.appendChild(playerLabel);
+			// Create a sprite with the text texture
+			const texture = new THREE.CanvasTexture(canvas);
+			const spriteMaterial = new THREE.SpriteMaterial({ map: texture });
+			const sprite = new THREE.Sprite(spriteMaterial);
+			sprite.scale.set(1.2, 0.3, 1);
+			sprite.position.set(0, 2.2, 0); // Position slightly above the colored box
+			remoteSkateboard.mesh.add(sprite);
 
 			this.scene.add(remoteSkateboard.mesh);
 
@@ -1222,7 +1175,7 @@ export class Game {
 			// Calculate distance to target for each axis separately
 			const horizontalDistance = Math.sqrt(
 				(currentPosition.x - predictedPosition.x) ** 2 +
-					(currentPosition.z - predictedPosition.z) ** 2,
+				(currentPosition.z - predictedPosition.z) ** 2,
 			);
 
 			const verticalDistance = Math.abs(
@@ -1737,7 +1690,7 @@ export class Game {
 	 */
 	private handleChatMessage(message: ChatMessage, isOwnMessage: boolean): void {
 		console.log(`Game: Handling chat message from ${message.senderNickname}: "${message.message}" (isOwnMessage: ${isOwnMessage})`);
-		
+
 		// Add message to UI
 		this.ui.addChatMessage(
 			message.senderId,
@@ -1745,11 +1698,11 @@ export class Game {
 			message.message,
 			isOwnMessage
 		);
-		
+
 		// Show a notification if it's not our own message
 		if (!isOwnMessage) {
 			this.ui.showNotification(`${message.senderNickname}: ${message.message}`, 3000);
-			
+
 			// Also play a sound for notifications (if we add one later)
 			// this.playNotificationSound();
 		}
