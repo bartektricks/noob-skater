@@ -43,7 +43,6 @@ export class Game {
 	private rails: Rail[] = [];
 	private gameMenu: GameMenu;
 	private isGameRunning = false;
-	private playerNickname = "";
 
 	// Multiplayer properties
 	private networkManager: NetworkManager | null = null;
@@ -156,8 +155,8 @@ export class Game {
 				// Show pause menu when ESC is pressed during gameplay
 				this.ui.togglePauseMenu(true);
 
-				// If hosting, show the server ID in the pause menu
-				if (this.isMultiplayer && this.isHost && this.hostConnectionCode) {
+				// If hosting and in online mode, show the server ID in the pause menu
+				if (this.isMultiplayer && this.isHost && this.hostConnectionCode && this.isOnlineMode) {
 					this.ui.setServerIdInPauseMenu(this.hostConnectionCode);
 				} else {
 					this.ui.setServerIdInPauseMenu(null);
@@ -323,7 +322,6 @@ export class Game {
 
 		if (!isResuming) {
 			// New game start
-			this.playerNickname = options.nickname;
 			this.isGameRunning = true;
 
 			// Set server properties
@@ -333,9 +331,6 @@ export class Game {
 
 			// Initialize multiplayer
 			this.setupMultiplayer(options);
-
-			// Update UI with player nickname
-			this.ui.setPlayerNickname(this.playerNickname);
 
 			// Start the clock
 			this.clock.start();

@@ -22,7 +22,6 @@ export class GameMenu {
 	private menuContainer!: HTMLDivElement;
 	private resumeButton!: HTMLButtonElement;
 	private startButton!: HTMLButtonElement;
-	private isInitialStart = true;
 
 	// Peer-to-peer elements
 	private hostRoleRadio!: HTMLInputElement;
