@@ -1316,7 +1316,6 @@ export class Game {
 		this.rails = [];
 
 
-		// First long rail (positioned along the X axis)
 		const rail1 = new Rail(-40, 20, 40, 20);
 		this.scene.add(rail1.mesh);
 		this.rails.push(rail1);
@@ -1324,6 +1323,10 @@ export class Game {
 		const rail2 = new Rail(-42, 20, -100, -20);
 		this.scene.add(rail2.mesh);
 		this.rails.push(rail2);
+
+		const rail3 = new Rail(-40, 25, 40, 25);
+		this.scene.add(rail3.mesh);
+		this.rails.push(rail3);
 
 		console.log("Rails created:", this.rails.length);
 	}
