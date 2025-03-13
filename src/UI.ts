@@ -57,16 +57,16 @@ export class UI {
 		this.controlsElement = document.createElement("div");
 		this.controlsElement.className = "fixed bottom-5 left-5 bg-black/80 text-white py-4 px-6 rounded-lg shadow-lg backdrop-blur-sm border border-gray-700";
 
-		// Determine if controls should be visible based on debug parameter
-		if (!this.isCameraDebugEnabled) {
-			this.isControlsVisible = false;
-			this.controlsElement.classList.add("hidden");
-		}
+		// Set controls to be initially visible
+		this.isControlsVisible = true;
 
 		// Add controls information
 		this.controlsElement.innerHTML = `
 			<div class="flex justify-between items-center mb-3">
 				<div class="font-bold text-red-400 text-lg">Controls</div>
+				<button id="toggle-controls-button" class="bg-gray-700 hover:bg-gray-600 rounded px-2 py-1 text-xs">
+					Hide
+				</button>
 			</div>
 			<div class="grid grid-cols-2 gap-x-6 gap-y-2 text-gray-200">
 				<div class="flex items-center">
@@ -93,6 +93,28 @@ export class UI {
 		`;
 
 		document.body.appendChild(this.controlsElement);
+		
+		// Create a floating toggle button that remains visible even when controls are hidden
+		const toggleButton = document.createElement("button");
+		toggleButton.className = "fixed bottom-5 left-5 bg-red-600 hover:bg-red-700 text-white px-4 py-2 rounded-lg shadow-lg border border-red-700 z-10 font-medium";
+		toggleButton.textContent = "Controls";
+		toggleButton.style.display = "none"; // Initially hidden since controls are visible
+		
+		document.body.appendChild(toggleButton);
+		
+		// Add event listener to the toggle button inside the controls panel
+		document.getElementById("toggle-controls-button")?.addEventListener("click", () => {
+			this.isControlsVisible = false;
+			this.controlsElement.classList.add("hidden");
+			toggleButton.style.display = "block";
+		});
+		
+		// Add event listener to the floating toggle button
+		toggleButton.addEventListener("click", () => {
+			this.isControlsVisible = true;
+			this.controlsElement.classList.remove("hidden");
+			toggleButton.style.display = "none";
+		});
 	}
 	
 	/**
@@ -193,23 +215,29 @@ export class UI {
 
 	// Add method to show connection status
 	public showConnectionStatus(
-		status: "connected" | "disconnected" | "connecting",
+		status: "connected" | "disconnected" | "connecting" | "local",
 	): void {
 		// Update status display
+		this.connectionStatusDisplay.className = "fixed top-5 right-5 py-2 px-4 rounded-lg flex items-center gap-2 text-white text-sm font-medium bg-black/80 border border-gray-700 shadow-lg backdrop-blur-sm";
+		
 		if (status === "connected") {
-			this.connectionStatusDisplay.className = "fixed top-5 right-5 py-2 px-4 rounded-lg flex items-center gap-2 text-white text-sm font-medium bg-black/80 border border-gray-700 shadow-lg backdrop-blur-sm";
+			// For connected status, we'll initially set this but updateConnectedPlayers
+			// will replace it with actual player names when it's called
 			this.connectionStatusDisplay.innerHTML = `
 				<span class="h-2 w-2 rounded-full bg-green-500"></span>
 				Connected
 			`;
 		} else if (status === "disconnected") {
-			this.connectionStatusDisplay.className = "fixed top-5 right-5 py-2 px-4 rounded-lg flex items-center gap-2 text-white text-sm font-medium bg-black/80 border border-gray-700 shadow-lg backdrop-blur-sm";
 			this.connectionStatusDisplay.innerHTML = `
 				<span class="h-2 w-2 rounded-full bg-red-500"></span>
 				Disconnected
 			`;
+		} else if (status === "local") {
+			this.connectionStatusDisplay.innerHTML = `
+				<span class="h-2 w-2 rounded-full bg-blue-500"></span>
+				Local
+			`;
 		} else {
-			this.connectionStatusDisplay.className = "fixed top-5 right-5 py-2 px-4 rounded-lg flex items-center gap-2 text-white text-sm font-medium bg-black/80 border border-gray-700 shadow-lg backdrop-blur-sm";
 			this.connectionStatusDisplay.innerHTML = `
 				<span class="h-2 w-2 rounded-full bg-yellow-500 animate-pulse"></span>
 				Connecting...
@@ -222,30 +250,62 @@ export class UI {
 
 	// Add method to show connected players
 	public updateConnectedPlayers(
-		playerCount: number,
+		playerCount: number, 
 		playerIds: string[],
+		isOnlineMode = true,
+		playerNicknames: Record<string, string> = {}
 	): void {
 		if (!this.connectedPlayersElement) return;
 		
-		if (playerCount > 1) {
-			// Show connected players info when in multiplayer
+		if (isOnlineMode) {
+			// Online mode behavior
 			this.connectedPlayersElement.classList.remove("hidden");
 			
-			// Create the connected players content
-			this.connectedPlayersElement.innerHTML = `
-				<div class="text-gray-300 font-bold mb-3">Connected Players (${playerCount})</div>
-				<div class="flex flex-wrap justify-center gap-3">
-					${playerIds.map(id => `
-						<div class="py-2 px-4 bg-gray-900/70 rounded-full text-sm border border-gray-700">
-							<span class="inline-block h-2 w-2 rounded-full bg-green-500 mr-2"></span>
-							${id.substring(0, 8)}
-						</div>
-					`).join('')}
-				</div>
-			`;
+			if (playerCount > 0) {
+				// Create the connected players content with usernames
+				this.connectedPlayersElement.innerHTML = `
+					<div class="text-gray-300 font-bold mb-3">Connected Players (${playerCount})</div>
+					<div class="flex flex-wrap justify-center gap-3">
+						${playerIds.map(id => `
+							<div class="py-2 px-4 bg-gray-900/70 rounded-full text-sm border border-gray-700">
+								<span class="inline-block h-2 w-2 rounded-full bg-green-500 mr-2"></span>
+								${playerNicknames[id] || id.substring(0, 8)}
+							</div>
+						`).join('')}
+					</div>
+				`;
+			} else {
+				// No players connected in online mode
+				this.connectedPlayersElement.innerHTML = `
+					<div class="text-gray-300 font-bold mb-3">No players</div>
+					<div class="text-gray-400 text-sm">
+						Waiting for players to join...
+					</div>
+				`;
+			}
+
+			// Also update connection status display based on player count
+			if (playerCount > 0) {
+				// When players are connected, show their nicknames in the connection status
+				this.connectionStatusDisplay.innerHTML = `
+					<span class="h-2 w-2 rounded-full bg-green-500"></span>
+					<span>
+						${playerIds.map(id => playerNicknames[id] || id.substring(0, 8)).join(', ')}
+					</span>
+				`;
+			} else {
+				// When no players are connected
+				this.connectionStatusDisplay.innerHTML = `
+					<span class="h-2 w-2 rounded-full bg-green-500"></span>
+					<span>No players</span>
+				`;
+			}
 		} else {
-			// Hide connected players section in single-player
+			// Hide connected players section in offline mode
 			this.connectedPlayersElement.classList.add("hidden");
+			
+			// For offline mode, we already set "Local" in showConnectionStatus,
+			// so we don't need to update the connection status display here
 		}
 	}
 

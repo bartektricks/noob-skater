@@ -65,6 +65,10 @@ export class Game {
 	private remotePositionLerpFactor = 0.1; // Smoother position transitions
 	private remoteRotationLerpFactor = 0.35; // Much faster rotation response
 
+	// Add player nicknames map
+	private playerNicknames: Record<string, string> = {};
+	private myNickname = "Player";
+
 	// Enhance remoteTargetPosition and remoteTargetRotation with velocity and acceleration
 	private lastRemoteRotation: THREE.Euler = new THREE.Euler();
 
@@ -255,6 +259,10 @@ export class Game {
 			this.remotePlayers.clear();
 		}
 
+		// Reset player nicknames
+		this.playerNicknames = {};
+		this.myNickname = "Player";
+
 		// Clean up multiplayer if needed
 		if (this.networkManager) {
 			// Disconnect from peer
@@ -274,7 +282,7 @@ export class Game {
 		this.serverName = null;
 
 		// Reset UI
-		this.ui.updateConnectedPlayers(0, []);
+		this.ui.updateConnectedPlayers(0, [], false);
 		this.ui.showConnectionStatus("disconnected");
 		this.ui.setServerIdInPauseMenu(null);
 
@@ -324,10 +332,24 @@ export class Game {
 			// New game start
 			this.isGameRunning = true;
 
+			// Store player's nickname
+			this.myNickname = options.nickname || "Player";
+			
+			// Reset player nicknames map and add own nickname
+			this.playerNicknames = {};
+			if (this.peer?.id) {
+				this.playerNicknames[this.peer.id] = this.myNickname;
+			}
+
 			// Set server properties
 			this.isOnlineMode = options.isOnlineMode;
 			this.serverName = options.serverName || null;
 			this.serverId = options.serverId || null;
+			
+			// Set initial connection status based on mode
+			if (!this.isOnlineMode) {
+				this.ui.showConnectionStatus("local");
+			}
 
 			// Initialize multiplayer
 			this.setupMultiplayer(options);
@@ -365,12 +387,15 @@ export class Game {
 			if (this.serverId) {
 				console.log("Server ID:", this.serverId);
 			}
+			
+			// Update UI to show connecting status for online mode
+			this.ui.showConnectionStatus("connecting");
 		} else {
 			console.log("Offline mode");
+			
+			// Update UI to show local status for offline mode
+			this.ui.showConnectionStatus("local");
 		}
-
-		// Update UI to show connecting status
-		this.ui.showConnectionStatus("connecting");
 
 		// Set up the network manager event handlers
 		const networkEvents: NetworkManagerEvents = {
@@ -390,11 +415,30 @@ export class Game {
 					}
 				}
 
+				// The nickname exchange now happens automatically during connection
+				// through the improved NetworkManager methods
+
 				// Update the player list
 				if (this.networkManager) {
 					const peers = this.networkManager.getConnectedPeers();
-					this.ui.updateConnectedPlayers(peers.length, peers);
+					this.ui.updateConnectedPlayers(peers.length, peers, this.isOnlineMode, this.playerNicknames);
+					
+					// If host, broadcast the updated player list to the newly connected client
+					if (this.isHost) {
+						this.networkManager.broadcastPlayerList(this.playerNicknames);
+					}
+				} else {
+					this.ui.updateConnectedPlayers(0, [], this.isOnlineMode, this.playerNicknames);
 				}
+
+				if (!this.networkManager?.isConnected()) {
+					this.ui.showConnectionStatus("disconnected");
+				}
+			},
+
+			onGetNickname: () => {
+				console.log(`Returning current nickname for host takeover: ${this.myNickname}`);
+				return this.myNickname;
 			},
 
 			onHostTakeover: (hostId) => {
@@ -423,8 +467,17 @@ export class Game {
 					this.ui.setServerIdInPauseMenu(hostId, true);
 				}
 
+				// Add our nickname to the playerNicknames map with our new host ID
+				this.playerNicknames[hostId] = this.myNickname;
+				
+				// Send our nickname to any existing/future clients as the new host
+				if (this.networkManager && this.myNickname) {
+					console.log(`Sending nickname as new host: ${this.myNickname}`);
+					this.networkManager.sendHostInfo(this.myNickname);
+				}
+
 				// Initialize player list with empty array
-				this.ui.updateConnectedPlayers(0, []);
+				this.ui.updateConnectedPlayers(0, [], this.isOnlineMode, this.playerNicknames);
 			},
 
 			onDisconnected: (peerId) => {
@@ -454,9 +507,9 @@ export class Game {
 				// Update the player list
 				if (this.networkManager) {
 					const peers = this.networkManager.getConnectedPeers();
-					this.ui.updateConnectedPlayers(peers.length, peers);
+					this.ui.updateConnectedPlayers(peers.length, peers, this.isOnlineMode, this.playerNicknames);
 				} else {
-					this.ui.updateConnectedPlayers(0, []);
+					this.ui.updateConnectedPlayers(0, [], this.isOnlineMode, this.playerNicknames);
 				}
 
 				if (!this.networkManager?.isConnected()) {
@@ -512,14 +565,30 @@ export class Game {
 				}
 			},
 
-			onPlayerJoined: (peerId) => {
-				console.log(`Player joined: ${peerId}`);
-				this.ui.showNotification(`New player joined (${peerId})`);
+			onPlayerJoined: (peerId: string, nickname?: string) => {
+				console.log(`Player joined: ${peerId}${nickname ? ` (${nickname})` : ''}`);
+				
+				// Store the player's nickname if provided
+				if (nickname) {
+					// Store the nickname regardless of whether this player is the host
+					this.playerNicknames[peerId] = nickname;
+					console.log(`Stored nickname for ${peerId}: ${nickname}`);
+					console.log("Current playerNicknames:", JSON.stringify(this.playerNicknames));
+					
+					this.ui.showNotification(`${nickname} joined the game`);
+				} else {
+					this.ui.showNotification(`New player joined (${peerId})`);
+				}
 
 				// Update the player list
 				if (this.networkManager) {
 					const peers = this.networkManager.getConnectedPeers();
-					this.ui.updateConnectedPlayers(peers.length, peers);
+					this.ui.updateConnectedPlayers(peers.length, peers, this.isOnlineMode, this.playerNicknames);
+					
+					// If host, broadcast the updated player list to all clients
+					if (this.isHost) {
+						this.networkManager.broadcastPlayerList(this.playerNicknames);
+					}
 				}
 			},
 
@@ -532,12 +601,42 @@ export class Game {
 					this.scene.remove(remotePlayer.skateboard.mesh);
 					this.remotePlayers.delete(peerId);
 				}
+				
+				// Remove the player's nickname from our map
+				if (this.playerNicknames[peerId]) {
+					const nickname = this.playerNicknames[peerId];
+					console.log(`Player ${nickname} (${peerId}) left the game`);
+					delete this.playerNicknames[peerId];
+				}
 
 				// Update the player list
 				if (this.networkManager) {
 					const peers = this.networkManager.getConnectedPeers();
-					this.ui.updateConnectedPlayers(peers.length, peers);
+					this.ui.updateConnectedPlayers(peers.length, peers, this.isOnlineMode, this.playerNicknames);
+					
+					// If host, broadcast the updated player list to all clients
+					if (this.isHost) {
+						this.networkManager.broadcastPlayerList(this.playerNicknames);
+					}
 				}
+			},
+
+			// Add handler for player list updates from the host
+			onPlayerListReceived: (peerIds: string[], nicknames: Record<string, string>) => {
+				console.log("Received player list from host:", peerIds, nicknames);
+				
+				// Update our local nickname registry with the host's version
+				this.playerNicknames = {...this.playerNicknames, ...nicknames};
+				
+				// Filter out the current player's ID and nickname from the lists
+				const filteredPeerIds = peerIds.filter(id => id !== this.peer?.id);
+				const filteredNicknames = {...nicknames};
+				if (this.peer?.id) {
+					delete filteredNicknames[this.peer.id];
+				}
+				
+				// Update the UI with the filtered player list
+				this.ui.updateConnectedPlayers(filteredPeerIds.length, filteredPeerIds, this.isOnlineMode, filteredNicknames);
 			},
 		};
 
@@ -557,7 +656,7 @@ export class Game {
 			}
 
 			this.networkManager
-				.initAsHost(customId)
+				.initAsHost(customId, this.myNickname)
 				.then((id) => {
 					// Store the connection code for displaying in the pause menu
 					this.hostConnectionCode = id;
@@ -568,9 +667,17 @@ export class Game {
 
 					// Set our peer ID
 					this.peer = { id };
+					
+					// Store our own nickname in the map
+					this.playerNicknames[id] = this.myNickname;
 
 					// Initialize player list with empty array
-					this.ui.updateConnectedPlayers(0, []);
+					this.ui.updateConnectedPlayers(0, [], this.isOnlineMode, this.playerNicknames);
+					
+					// Broadcast the initial player list (just ourselves at this point)
+					if (this.networkManager) {
+						this.networkManager.broadcastPlayerList(this.playerNicknames);
+					}
 				})
 				.catch((err) => {
 					console.error("Failed to initialize as host:", err);
@@ -581,7 +688,7 @@ export class Game {
 			// Connect to host
 			console.log("Connecting to host with code:", options.peerCode);
 			this.networkManager
-				.connectToHost(options.peerCode)
+				.connectToHost(options.peerCode, this.myNickname)
 				.then(() => {
 					if (this.networkManager?.getIsHost()) {
 						// If we became the host through takeover, don't show the "connected" message
@@ -607,8 +714,15 @@ export class Game {
 		// Start a periodic update of the player list
 		setInterval(() => {
 			if (this.networkManager && this.isMultiplayer) {
-				const peers = this.networkManager.getConnectedPeers();
-				this.ui.updateConnectedPlayers(peers.length, peers);
+				if (this.isHost) {
+					// If host, get local peers and broadcast to all
+					const peers = this.networkManager.getConnectedPeers();
+					this.ui.updateConnectedPlayers(peers.length, peers, this.isOnlineMode, this.playerNicknames);
+					
+					// Broadcast the player list to all clients periodically
+					this.networkManager.broadcastPlayerList(this.playerNicknames);
+				}
+				// Clients will rely on the host's broadcasts for player list updates
 			}
 		}, 5000); // Update every 5 seconds
 	}
