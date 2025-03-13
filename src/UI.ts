@@ -1,10 +1,9 @@
 export class UI {
 	private controlsElement!: HTMLDivElement;
-	private trickTextElement!: HTMLDivElement;
 	private exitButtonElement!: HTMLButtonElement;
 	private pauseMenuElement!: HTMLDivElement; // Pause menu container
 	private serverIdElement!: HTMLDivElement; // Element to display server ID
-	private trickDisplay: HTMLDivElement;
+	private trickDisplay!: HTMLDivElement;
 	private notificationDisplay: HTMLDivElement;
 	private notificationTimeout: number | null = null;
 	private connectionStatusDisplay: HTMLDivElement;
@@ -18,15 +17,10 @@ export class UI {
 	constructor() {
 		// Check for debug=camera URL parameter
 		this.isCameraDebugEnabled = this.checkCameraDebugParam();
-		
+
 		this.createControlsInfo();
 		this.createTrickText();
 		this.createPauseMenu();
-
-		// Create trick display
-		this.trickDisplay = document.createElement("div");
-		this.trickDisplay.className = "fixed bottom-28 left-1/2 transform -translate-x-1/2 bg-black/80 text-white py-3 px-8 rounded-lg text-center font-bold text-xl backdrop-blur-sm border border-gray-700 shadow-lg";
-		document.body.appendChild(this.trickDisplay);
 
 		// Create notification display
 		this.notificationDisplay = document.createElement("div");
@@ -42,7 +36,7 @@ export class UI {
 		`;
 		document.body.appendChild(this.connectionStatusDisplay);
 	}
-	
+
 	/**
 	 * Check if the camera debug parameter is present in the URL
 	 * @returns boolean Whether the camera debug mode is enabled
@@ -93,22 +87,22 @@ export class UI {
 		`;
 
 		document.body.appendChild(this.controlsElement);
-		
+
 		// Create a floating toggle button that remains visible even when controls are hidden
 		const toggleButton = document.createElement("button");
 		toggleButton.className = "fixed bottom-5 left-5 bg-red-600 hover:bg-red-700 text-white px-4 py-2 rounded-lg shadow-lg border border-red-700 z-10 font-medium";
 		toggleButton.textContent = "Controls";
 		toggleButton.style.display = "none"; // Initially hidden since controls are visible
-		
+
 		document.body.appendChild(toggleButton);
-		
+
 		// Add event listener to the toggle button inside the controls panel
 		document.getElementById("toggle-controls-button")?.addEventListener("click", () => {
 			this.isControlsVisible = false;
 			this.controlsElement.classList.add("hidden");
 			toggleButton.style.display = "block";
 		});
-		
+
 		// Add event listener to the floating toggle button
 		toggleButton.addEventListener("click", () => {
 			this.isControlsVisible = true;
@@ -116,7 +110,7 @@ export class UI {
 			toggleButton.style.display = "none";
 		});
 	}
-	
+
 	/**
 	 * Toggle the visibility of the controls panel
 	 * @param show Optional parameter to force show/hide
@@ -128,14 +122,14 @@ export class UI {
 			this.controlsElement.classList.add("hidden");
 			return;
 		}
-		
+
 		// If show is provided, set the state, otherwise toggle
 		if (show !== undefined) {
 			this.isControlsVisible = show;
 		} else {
 			this.isControlsVisible = !this.isControlsVisible;
 		}
-		
+
 		// Update visibility
 		if (this.isControlsVisible) {
 			this.controlsElement.classList.remove("hidden");
@@ -143,14 +137,14 @@ export class UI {
 			this.controlsElement.classList.add("hidden");
 		}
 	}
-	
+
 	/**
 	 * Get the current visibility state of controls
 	 */
 	public getControlsVisibility(): boolean {
 		return this.isControlsVisible;
 	}
-	
+
 	/**
 	 * Check if camera debug mode is enabled
 	 */
@@ -160,25 +154,22 @@ export class UI {
 
 	private createTrickText(): void {
 		// Create trick text element
-		this.trickTextElement = document.createElement("div");
-		this.trickTextElement.className = "fixed top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 text-white text-5xl font-bold";
-		this.trickTextElement.style.opacity = "0";
-		this.trickTextElement.style.transition = "all 0.5s ease-out";
-		this.trickTextElement.style.textShadow = "0 0 10px rgba(0, 0, 0, 0.8), 0 0 20px rgba(0, 0, 0, 0.6)";
-		this.trickTextElement.style.pointerEvents = "none"; // Don't interfere with clicks
-		document.body.appendChild(this.trickTextElement);
+		// Create trick display
+		this.trickDisplay = document.createElement("div");
+		this.trickDisplay.className = "fixed bottom-1/5 left-1/2 transform -translate-x-1/2 text-yellow-400 text-center font-bold text-2xl pointer-events-none";
+		this.trickDisplay.style.opacity = "0";
+		this.trickDisplay.style.transition = "all 0.5s ease-out";
+		document.body.appendChild(this.trickDisplay);
 	}
 
 	public showTrickText(text: string): void {
 		// Display the trick text
-		this.trickTextElement.textContent = text;
-		this.trickTextElement.style.opacity = "1";
-		this.trickTextElement.style.transform = "translate(-50%, -50%) scale(1.2)";
+		this.trickDisplay.textContent = text;
+		this.trickDisplay.style.opacity = "1";
 
 		// Hide after a delay
 		setTimeout(() => {
-			this.trickTextElement.style.opacity = "0";
-			this.trickTextElement.style.transform = "translate(-50%, -50%) scale(1)";
+			this.trickDisplay.style.opacity = "0";
 		}, 1000);
 	}
 
@@ -219,7 +210,7 @@ export class UI {
 	): void {
 		// Update status display
 		this.connectionStatusDisplay.className = "fixed top-5 right-5 py-2 px-4 rounded-lg flex items-center gap-2 text-white text-sm font-medium bg-black/80 border border-gray-700 shadow-lg backdrop-blur-sm";
-		
+
 		if (status === "connected") {
 			// For connected status, we'll initially set this but updateConnectedPlayers
 			// will replace it with actual player names when it's called
@@ -250,17 +241,17 @@ export class UI {
 
 	// Add method to show connected players
 	public updateConnectedPlayers(
-		playerCount: number, 
+		playerCount: number,
 		playerIds: string[],
 		isOnlineMode = true,
 		playerNicknames: Record<string, string> = {}
 	): void {
 		if (!this.connectedPlayersElement) return;
-		
+
 		if (isOnlineMode) {
 			// Online mode behavior
 			this.connectedPlayersElement.classList.remove("hidden");
-			
+
 			if (playerCount > 0) {
 				// Create the connected players content with usernames
 				this.connectedPlayersElement.innerHTML = `
@@ -303,7 +294,7 @@ export class UI {
 		} else {
 			// Hide connected players section in offline mode
 			this.connectedPlayersElement.classList.add("hidden");
-			
+
 			// For offline mode, we already set "Local" in showConnectionStatus,
 			// so we don't need to update the connection status display here
 		}
@@ -348,7 +339,7 @@ export class UI {
 		resumeButton.textContent = "Resume Game";
 		resumeButton.addEventListener("click", () => {
 			this.togglePauseMenu(false);
-			
+
 			// Call the resume game callback if it exists
 			if (this.onResumeGame) {
 				console.log("Resuming game...");
@@ -364,7 +355,7 @@ export class UI {
 		mainMenuButton.addEventListener("click", () => {
 			// First toggle the pause menu to hide it
 			this.togglePauseMenu(false);
-			
+
 			// Then check if we have a callback and call it
 			if (this.onExitToMenu) {
 				console.log("Exiting to main menu...");
@@ -427,7 +418,7 @@ export class UI {
 	public setServerIdInPauseMenu(serverId: string | null, isTakeover = false): void {
 		if (serverId) {
 			const serverIdString = serverId.substring(0, 6);
-			
+
 			this.serverIdElement.innerHTML = `
 				<div class="text-sm font-medium text-gray-400 mb-3">
 					${isTakeover ? "You took over server" : "Your server ID"}
@@ -442,10 +433,10 @@ export class UI {
 				</div>
 				<div class="mt-4 text-sm text-gray-400">Share this ID with friends for them to join</div>
 			`;
-			
+
 			// Show the server ID element
 			this.serverIdElement.classList.remove("hidden");
-			
+
 			// Add click event for the copy button
 			const copyButton = document.getElementById("copy-server-id");
 			if (copyButton) {

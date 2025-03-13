@@ -99,6 +99,9 @@ export class Game {
 		// Create UI
 		this.ui = new UI();
 
+		// Connect UI to skateboard
+		this.skateboard.setUI(this.ui);
+
 		// Connect the exit button to the returnToMainMenu method with proper binding
 		this.ui.setExitToMenuCallback(() => {
 			console.log("Exit callback triggered");
