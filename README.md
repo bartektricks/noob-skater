@@ -1,6 +1,6 @@
 # Noob Skater
 
-A multiplayer skateboarding game with Supabase server discovery.
+A multiplayer skateboarding game with Supabase server discovery built entirely with Cursor and Claude 3.7. Code is probably bad but I didn't write a single line of code just to see how will it handle building something semi complex by itself.
 
 ## Setup
 
