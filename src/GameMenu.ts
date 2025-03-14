@@ -57,7 +57,7 @@ export class GameMenu {
 		// Create menu content
 		this.menuContainer = document.createElement("div");
 		this.menuContainer.className =
-			"bg-gray-800/90 rounded-xl shadow-2xl px-10 pb-10 py-6 w-full max-w-140 text-center text-white backdrop-blur-sm border border-gray-700 max-h-[95dvh] overflow-y-auto";
+			"bg-gray-800/90 rounded-xl shadow-2xl px-10 pb-10 py-6 w-full max-w-144 text-center text-white backdrop-blur-sm border border-gray-700 max-h-[95dvh] overflow-y-auto";
 
 		// Create form
 		const form = document.createElement("form");
@@ -105,16 +105,20 @@ export class GameMenu {
 		gameModeLabel.textContent = "Game Mode:";
 		gameModeGroup.appendChild(gameModeLabel);
 
+		// Create tab container for game mode
+		const gameModeTabs = document.createElement("div");
+		gameModeTabs.className = "flex rounded-lg bg-gray-900/50 p-1 border border-gray-700";
+		gameModeGroup.appendChild(gameModeTabs);
+
 		// Online Mode option
 		const onlineModeContainer = document.createElement("div");
-		onlineModeContainer.className = "flex items-center mb-3";
+		onlineModeContainer.className = "flex-1";
 
 		this.onlineModeRadio = document.createElement("input");
 		this.onlineModeRadio.type = "radio";
 		this.onlineModeRadio.id = "online-mode";
 		this.onlineModeRadio.name = "game-mode";
-		this.onlineModeRadio.className =
-			"mr-3 h-4 w-4 text-red-400 focus:ring-red-400";
+		this.onlineModeRadio.className = "peer hidden";
 		this.onlineModeRadio.checked = true;
 		this.onlineModeRadio.addEventListener("change", () =>
 			this.toggleGameModeOptions(),
@@ -123,22 +127,21 @@ export class GameMenu {
 
 		const onlineModeLabel = document.createElement("label");
 		onlineModeLabel.htmlFor = "online-mode";
-		onlineModeLabel.className = "text-gray-300 font-medium";
+		onlineModeLabel.className = "block w-full text-center py-2.5 px-4 rounded-md cursor-pointer transition-all duration-200 text-sm font-medium text-gray-300 hover:text-white hover:bg-blue-500/30 peer-checked:bg-blue-500/70 peer-checked:text-white";
 		onlineModeLabel.textContent = "Online Mode";
 		onlineModeContainer.appendChild(onlineModeLabel);
 
-		gameModeGroup.appendChild(onlineModeContainer);
+		gameModeTabs.appendChild(onlineModeContainer);
 
 		// Offline Mode option
 		const offlineModeContainer = document.createElement("div");
-		offlineModeContainer.className = "flex items-center";
+		offlineModeContainer.className = "flex-1";
 
 		this.offlineModeRadio = document.createElement("input");
 		this.offlineModeRadio.type = "radio";
 		this.offlineModeRadio.id = "offline-mode";
 		this.offlineModeRadio.name = "game-mode";
-		this.offlineModeRadio.className =
-			"mr-3 h-4 w-4 text-red-400 focus:ring-red-400";
+		this.offlineModeRadio.className = "peer hidden";
 		this.offlineModeRadio.addEventListener("change", () =>
 			this.toggleGameModeOptions(),
 		);
@@ -146,11 +149,11 @@ export class GameMenu {
 
 		const offlineModeLabel = document.createElement("label");
 		offlineModeLabel.htmlFor = "offline-mode";
-		offlineModeLabel.className = "text-gray-300 font-medium";
+		offlineModeLabel.className = "block w-full text-center py-2.5 px-4 rounded-md cursor-pointer transition-all duration-200 text-sm font-medium text-gray-300 hover:text-white hover:bg-blue-500/30 peer-checked:bg-blue-500/70 peer-checked:text-white";
 		offlineModeLabel.textContent = "Offline Mode";
 		offlineModeContainer.appendChild(offlineModeLabel);
 
-		gameModeGroup.appendChild(offlineModeContainer);
+		gameModeTabs.appendChild(offlineModeContainer);
 		form.appendChild(gameModeGroup);
 
 		// Server Mode Options (visible only when online mode is selected)
@@ -163,51 +166,65 @@ export class GameMenu {
 		serverModeLabel.textContent = "Server Options:";
 		this.serverModeContainer.appendChild(serverModeLabel);
 
-		// Create flex container for the radio options
-		const serverOptionsContainer = document.createElement("div");
-		serverOptionsContainer.className = "flex gap-8 mb-5";
-		this.serverModeContainer.appendChild(serverOptionsContainer);
+		// Create tab container for server options
+		const serverOptionsTabs = document.createElement("div");
+		serverOptionsTabs.className = "flex justify-between rounded-lg bg-gray-900/50 p-1 border border-gray-700 mb-5";
+		this.serverModeContainer.appendChild(serverOptionsTabs);
 
 		// Create New Server option
 		const createServerContainer = document.createElement("div");
-		createServerContainer.className = "flex items-center";
 
 		this.hostRoleRadio = document.createElement("input");
 		this.hostRoleRadio.type = "radio";
 		this.hostRoleRadio.id = "host-role";
 		this.hostRoleRadio.name = "peer-role";
-		this.hostRoleRadio.className =
-			"mr-3 h-4 w-4 text-red-400 focus:ring-red-400";
+		this.hostRoleRadio.className = "peer hidden";
 		this.hostRoleRadio.checked = true;
 
 		const createServerLabel = document.createElement("label");
 		createServerLabel.htmlFor = "host-role";
-		createServerLabel.className = "text-gray-300 font-medium";
+		createServerLabel.className = "block w-full text-center py-2.5 px-4 rounded-md cursor-pointer transition-all duration-200 text-sm font-medium text-gray-300 hover:text-white hover:bg-blue-500/30 peer-checked:bg-blue-500/70 peer-checked:text-white";
 		createServerLabel.textContent = "Create New Server";
 
 		createServerContainer.appendChild(this.hostRoleRadio);
 		createServerContainer.appendChild(createServerLabel);
-		serverOptionsContainer.appendChild(createServerContainer);
+		serverOptionsTabs.appendChild(createServerContainer);
 
 		// Join Existing Server option
 		const joinServerContainer = document.createElement("div");
-		joinServerContainer.className = "flex items-center";
 
 		this.clientRoleRadio = document.createElement("input");
 		this.clientRoleRadio.type = "radio";
 		this.clientRoleRadio.id = "client-role";
 		this.clientRoleRadio.name = "peer-role";
-		this.clientRoleRadio.className =
-			"mr-3 h-4 w-4 text-red-400 focus:ring-red-400";
+		this.clientRoleRadio.className = "peer hidden";
 
 		const joinServerLabel = document.createElement("label");
 		joinServerLabel.htmlFor = "client-role";
-		joinServerLabel.className = "text-gray-300 font-medium";
+		joinServerLabel.className = "block w-full text-center py-2.5 px-4 rounded-md cursor-pointer transition-all duration-200 text-sm font-medium text-gray-300 hover:text-white hover:bg-blue-500/30 peer-checked:bg-blue-500/70 peer-checked:text-white";
 		joinServerLabel.textContent = "Join Existing Server";
 
 		joinServerContainer.appendChild(this.clientRoleRadio);
 		joinServerContainer.appendChild(joinServerLabel);
-		serverOptionsContainer.appendChild(joinServerContainer);
+		serverOptionsTabs.appendChild(joinServerContainer);
+
+		// Direct Connection option
+		const directConnectionContainer = document.createElement("div");
+
+		const directConnectionRadio = document.createElement("input");
+		directConnectionRadio.type = "radio";
+		directConnectionRadio.id = "direct-connection";
+		directConnectionRadio.name = "peer-role";
+		directConnectionRadio.className = "peer hidden";
+
+		const directConnectionLabel = document.createElement("label");
+		directConnectionLabel.htmlFor = "direct-connection";
+		directConnectionLabel.className = "block w-full text-center py-2.5 px-4 rounded-md cursor-pointer transition-all duration-200 text-sm font-medium text-gray-300 hover:text-white hover:bg-blue-500/30 peer-checked:bg-blue-500/70 peer-checked:text-white";
+		directConnectionLabel.textContent = "Direct Connection";
+
+		directConnectionContainer.appendChild(directConnectionRadio);
+		directConnectionContainer.appendChild(directConnectionLabel);
+		serverOptionsTabs.appendChild(directConnectionContainer);
 
 		// Server name input (visible when creating a new server)
 		const serverNameGroup = document.createElement("div");
@@ -248,6 +265,7 @@ export class GameMenu {
 		`;
 		this.serverListContainer.appendChild(serverListTitle);
 
+		// Add server list
 		const serverList = document.createElement("div");
 		serverList.className =
 			"max-h-[280px] overflow-y-auto scrollbar-thin scrollbar-thumb-gray-600 scrollbar-track-gray-900";
@@ -268,6 +286,7 @@ export class GameMenu {
 		`;
 		this.serverListContainer.appendChild(paginationContainer);
 
+		// Add refresh button
 		const refreshButton = document.createElement("button");
 		refreshButton.type = "button";
 		refreshButton.className =
@@ -283,17 +302,17 @@ export class GameMenu {
 
 		this.serverModeContainer.appendChild(this.serverListContainer);
 
-		// Connection code input for direct p2p connection
-		const connectionCodeGroup = document.createElement("div");
-		connectionCodeGroup.className = "mb-6 text-left";
-		connectionCodeGroup.id = "connection-code-group";
-		connectionCodeGroup.style.display = "none";
+		// Direct connection container (visible when direct connection is selected)
+		const directConnectionGroup = document.createElement("div");
+		directConnectionGroup.className = "mb-6 text-left";
+		directConnectionGroup.id = "direct-connection-group";
+		directConnectionGroup.style.display = "none";
 
-		const connectionCodeLabel = document.createElement("label");
-		connectionCodeLabel.htmlFor = "connection-code";
-		connectionCodeLabel.className = "block mb-3 font-bold text-gray-300";
-		connectionCodeLabel.textContent = "Direct P2P Connection Code:";
-		connectionCodeGroup.appendChild(connectionCodeLabel);
+		const directConnectionLabel2 = document.createElement("label");
+		directConnectionLabel2.htmlFor = "connection-code";
+		directConnectionLabel2.className = "block mb-3 font-bold text-gray-300";
+		directConnectionLabel2.textContent = "Direct P2P Connection Code:";
+		directConnectionGroup.appendChild(directConnectionLabel2);
 
 		this.peerCodeInput = document.createElement("input");
 		this.peerCodeInput.type = "text";
@@ -302,9 +321,9 @@ export class GameMenu {
 		this.peerCodeInput.className =
 			"w-full p-3.5 rounded-lg bg-gray-700 border border-gray-600 text-white text-base focus:outline-none focus:ring-2 focus:ring-red-400 focus:border-transparent transition";
 		this.peerCodeInput.placeholder = "Enter connection code";
-		connectionCodeGroup.appendChild(this.peerCodeInput);
+		directConnectionGroup.appendChild(this.peerCodeInput);
 
-		this.serverModeContainer.appendChild(connectionCodeGroup);
+		this.serverModeContainer.appendChild(directConnectionGroup);
 
 		// Peer code display for hosts
 		this.peerCodeDisplay = document.createElement("div");
@@ -312,6 +331,11 @@ export class GameMenu {
 			"mb-6 p-5 bg-gray-900/70 rounded-lg border border-gray-700 hidden";
 		this.peerCodeDisplay.style.display = "none";
 		this.serverModeContainer.appendChild(this.peerCodeDisplay);
+
+		// Add event listeners for radio buttons
+		this.hostRoleRadio.addEventListener("change", () => this.toggleServerOptions());
+		this.clientRoleRadio.addEventListener("change", () => this.toggleServerOptions());
+		directConnectionRadio.addEventListener("change", () => this.toggleServerOptions());
 
 		form.appendChild(this.serverModeContainer);
 
@@ -342,12 +366,6 @@ export class GameMenu {
 		document.body.appendChild(this.menuElement);
 
 		// Set up event listeners
-		this.hostRoleRadio.addEventListener("change", () =>
-			this.toggleServerOptions(),
-		);
-		this.clientRoleRadio.addEventListener("change", () =>
-			this.toggleServerOptions(),
-		);
 		this.onlineModeRadio.addEventListener("change", () =>
 			this.toggleGameModeOptions(),
 		);
@@ -373,9 +391,8 @@ export class GameMenu {
 		if (!this.onlineModeRadio.checked) return;
 
 		const serverNameGroup = document.getElementById("server-name-group");
-		const connectionCodeGroup = document.getElementById(
-			"connection-code-group",
-		);
+		const connectionCodeGroup = document.getElementById("direct-connection-group");
+		const directConnectionRadio = document.getElementById("direct-connection") as HTMLInputElement;
 
 		if (this.hostRoleRadio.checked) {
 			// Create server mode
@@ -387,15 +404,24 @@ export class GameMenu {
 			}
 			this.serverListContainer.style.display = "none";
 			this.peerCodeDisplay.style.display = "none";
-		} else {
+		} else if (this.clientRoleRadio.checked) {
 			// Join server mode
 			if (serverNameGroup) {
 				serverNameGroup.style.display = "none";
+			}
+			if (connectionCodeGroup) {
+				connectionCodeGroup.style.display = "none";
 			}
 			this.serverListContainer.style.display = "block";
 
 			// Load server list
 			this.refreshServerList();
+		} else if (directConnectionRadio?.checked) {
+			// Direct connection mode
+			if (serverNameGroup) {
+				serverNameGroup.style.display = "none";
+			}
+			this.serverListContainer.style.display = "none";
 
 			// Show connection code input for direct p2p
 			if (connectionCodeGroup) {
@@ -477,7 +503,7 @@ export class GameMenu {
 				serverContent.className = "p-5";
 
 				const serverNameTime = document.createElement("div");
-				serverNameTime.className = "flex justify-between items-center mb-2";
+				serverNameTime.className = "flex justify-between items-center";
 
 				const serverName = document.createElement("div");
 				serverName.className = "font-medium text-white text-lg";
