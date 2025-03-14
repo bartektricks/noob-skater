@@ -11,6 +11,7 @@ type TrickState = {
 	reorientStartTime: number;
 	movementFlipped: boolean;
 	flipStartTime: number;
+	fromNetwork?: boolean; // Flag to indicate if this state update is from network
 };
 
 export class Skateboard {
@@ -1181,6 +1182,7 @@ export class Skateboard {
 	public setTrickState(state: TrickState): void {
 		// Handle flip state with direct control to ensure visual sync
 		const wasFlipping = this.isDoingFlip;
+
 		this.isDoingFlip = state.isDoingFlip || false;
 
 		if (this.isDoingFlip) {

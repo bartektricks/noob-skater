@@ -79,6 +79,9 @@ export class Game {
 	// Add ChatManager
 	private chatManager: ChatManager | null = null;
 
+	// At the class level, add a new property to track which players are flipping
+	private localPlayerIsFlipping = false;
+
 	constructor() {
 		// Create scene
 		this.scene = new THREE.Scene();
@@ -952,6 +955,19 @@ export class Game {
 
 			// Store it in our map
 			this.remotePlayers.set(peerId, remotePlayer);
+
+			// Explicitly initialize the trick state for the remote player
+			// This doesn't need the fromNetwork flag since it's not coming from a network update
+			remoteSkateboard.setTrickState({
+				isDoingFlip: false,
+				flipProgress: 0,
+				isGrinding: false,
+				grindProgress: 0,
+				isReorienting: false,
+				reorientStartTime: 0,
+				movementFlipped: false,
+				flipStartTime: 0,
+			});
 		} else {
 			// Update existing remote player
 			remotePlayer = this.remotePlayers.get(peerId);
@@ -1047,39 +1063,39 @@ export class Game {
 			if (skateboardState.trickState) {
 				const localTrickState = remotePlayer.skateboard.getTrickState();
 
-				// Handle flip animation
-				if (skateboardState.trickState.isDoingFlip) {
-					if (!localTrickState.isDoingFlip) {
-						// Remote player just started a flip
-						console.log("Remote player started flip");
+				// Create a network trick state that will be applied to the remote player
+				const networkTrickState = {
+					// Copy existing trick state properties
+					isDoingFlip: skateboardState.trickState.isDoingFlip || false,
+					flipStartTime: skateboardState.trickState.flipStartTime || 0,
+					flipProgress: skateboardState.trickState.flipProgress || 0,
 
-						// Create a new trick state with local timing for smooth animation
-						const newTrickState = {
-							...localTrickState,
-							isDoingFlip: true,
-							flipStartTime: Date.now(),
-							flipProgress: 0,
-						};
-						remotePlayer.skateboard.setTrickState(newTrickState);
-					} else if (skateboardState.trickState.flipProgress !== undefined) {
-						// Update flip progress if provided - helps with synchronization
-						// But don't update flipStartTime to avoid animation jumps
-						const newTrickState = {
-							...localTrickState,
-							flipProgress: skateboardState.trickState.flipProgress,
-						};
-						remotePlayer.skateboard.setTrickState(newTrickState);
-					}
-				} else if (localTrickState.isDoingFlip) {
-					// Remote player ended the flip
-					const newTrickState = {
-						...localTrickState,
-						isDoingFlip: false,
-						flipProgress: 1.0,
-					};
-					remotePlayer.skateboard.setTrickState(newTrickState);
-					remotePlayer.skateboard.mesh.rotation.z = 0; // Reset flip rotation
+					// Include required properties that might not be in the network state
+					isGrinding: localTrickState.isGrinding,
+					grindProgress: localTrickState.grindProgress,
+					isReorienting: localTrickState.isReorienting,
+					reorientStartTime: localTrickState.reorientStartTime,
+					movementFlipped: localTrickState.movementFlipped,
+
+					// Special flag to handle flip animations
+					fromNetwork: true,
+				};
+
+				// If the local player is currently flipping or just stopped flipping,
+				// we should prevent this from being applied to remote players
+				// This handles the case where our own flip gets echoed back from the network
+				if (this.localPlayerIsFlipping && networkTrickState.isDoingFlip) {
+					console.log(
+						"Ignoring echoed flip from network - local player is flipping",
+					);
+
+					// Override the remote player's flip state to prevent mirroring
+					networkTrickState.isDoingFlip = false;
+					networkTrickState.flipProgress = 0;
 				}
+
+				// Apply the trick state with the network flag
+				remotePlayer.skateboard.setTrickState(networkTrickState);
 			}
 		}
 	}
@@ -1374,6 +1390,15 @@ export class Game {
 
 		const delta = this.clock.getDelta();
 
+		// Track if the local player is starting or stopping a flip
+		const wasFlipping = this.localPlayerIsFlipping;
+		this.localPlayerIsFlipping = this.skateboard.getTrickState().isDoingFlip;
+
+		// If the local player just started flipping, log it for debugging
+		if (!wasFlipping && this.localPlayerIsFlipping) {
+			console.log("Local player started a flip");
+		}
+
 		this.skateboard.update(delta);
 
 		this.animateRemotePlayers(delta);
@@ -1663,6 +1688,7 @@ export class Game {
 					const newTrickState = {
 						...trickState,
 						flipProgress: flipProgress,
+						// No need for fromNetwork flag here since this is local animation progression
 					};
 					skateboard.setTrickState(newTrickState);
 				}
@@ -1678,6 +1704,7 @@ export class Game {
 					...trickState,
 					isDoingFlip: false,
 					flipProgress: 0,
+					// No need for fromNetwork flag here since this is local animation completion
 				};
 				skateboard.setTrickState(newTrickState);
 				skateboard.mesh.rotation.z = 0; // Reset z rotation
