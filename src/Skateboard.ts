@@ -292,7 +292,16 @@ export class Skateboard {
 
 		// Show combo text with score
 		if (this.ui) {
-			const comboText = this.currentCombo.join(" + ");
+			// Limit the display to show only the 5 most recent tricks
+			let comboText: string;
+			if (this.currentCombo.length <= 5) {
+				comboText = this.currentCombo.join(" + ");
+			} else {
+				// Show "..." followed by the 5 most recent tricks
+				const recentTricks = this.currentCombo.slice(-5);
+				comboText = `... + ${recentTricks.join(" + ")}`;
+			}
+
 			this.ui.showTrickText(
 				`${comboText} (${this.comboMultiplier.toFixed(1)}x)`,
 				totalScore,
@@ -904,7 +913,16 @@ export class Skateboard {
 
 		// Show combo text with updated score
 		if (this.ui) {
-			const comboText = this.currentCombo.join(" + ");
+			// Limit the display to show only the 5 most recent tricks
+			let comboText: string;
+			if (this.currentCombo.length <= 5) {
+				comboText = this.currentCombo.join(" + ");
+			} else {
+				// Show "..." followed by the 5 most recent tricks
+				const recentTricks = this.currentCombo.slice(-5);
+				comboText = `... + ${recentTricks.join(" + ")}`;
+			}
+
 			this.ui.showTrickText(
 				`${comboText} (${this.comboMultiplier.toFixed(1)}x)`,
 				totalScore,
