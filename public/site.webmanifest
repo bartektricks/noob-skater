@@ -1,6 +1,7 @@
 {
-	"name": "",
-	"short_name": "",
+	"name": "Claude Eagle: Noob Skater",
+	"short_name": "Noob Skater",
+	"description": "A multiplayer skateboarding game with Tony Hawk-inspired tricks and realistic physics",
 	"icons": [
 		{
 			"src": "/android-chrome-192x192.png",
@@ -13,7 +14,16 @@
 			"type": "image/png"
 		}
 	],
-	"theme_color": "#ffffff",
-	"background_color": "#ffffff",
-	"display": "standalone"
+	"theme_color": "#1e293b",
+	"background_color": "#1e293b",
+	"display": "standalone",
+	"start_url": "/",
+	"categories": ["games", "sports", "skateboarding", "entertainment"],
+	"screenshots": [
+		{
+			"src": "/screenshot1.png",
+			"sizes": "1280x720",
+			"type": "image/png"
+		}
+	]
 }
